@@ -15,8 +15,83 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.initUserSwitcher((user) => {
     // Callback when user is changed in the switcher
     document.getElementById('leaderName').textContent = user.name;
+    updateSidebarProfile(user);
     loadDashboard(user);
   });
+
+  // Sidebar Controls
+  const menuToggleBtn = document.getElementById('menuToggleBtn');
+  const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const sidebarPanel = document.getElementById('sidebarPanel');
+  const sidebarLinkArrivals = document.getElementById('sidebarLinkArrivals');
+  const sidebarLinkRoster = document.getElementById('sidebarLinkRoster');
+  const sidebarSignOutBtn = document.getElementById('sidebarSignOutBtn');
+
+  function openSidebar() {
+    sidebarPanel.classList.add('open');
+    sidebarBackdrop.classList.add('open');
+  }
+
+  function closeSidebar() {
+    sidebarPanel.classList.remove('open');
+    sidebarBackdrop.classList.remove('open');
+  }
+
+  if (menuToggleBtn) menuToggleBtn.addEventListener('click', openSidebar);
+  if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
+  if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeSidebar);
+
+  if (sidebarSignOutBtn) {
+    sidebarSignOutBtn.addEventListener('click', () => {
+      localStorage.removeItem('lfc_user_id');
+      window.location.reload();
+    });
+  }
+
+  // Smooth scroll links in sidebar
+  if (sidebarLinkArrivals) {
+    sidebarLinkArrivals.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeSidebar();
+      document.getElementById('stepPremob')?.scrollIntoView({ behavior: 'smooth' });
+      sidebarLinkArrivals.classList.add('active');
+      sidebarLinkRoster?.classList.remove('active');
+    });
+  }
+
+  if (sidebarLinkRoster) {
+    sidebarLinkRoster.addEventListener('click', (e) => {
+      e.preventDefault();
+      closeSidebar();
+      document.getElementById('rosterTitle')?.scrollIntoView({ behavior: 'smooth' });
+      sidebarLinkRoster.classList.add('active');
+      sidebarLinkArrivals?.classList.remove('active');
+    });
+  }
+
+  // Update Profile Card in Sidebar
+  function updateSidebarProfile(user) {
+    const avatar = document.getElementById('sidebarAvatar');
+    const name = document.getElementById('sidebarProfileName');
+    const role = document.getElementById('sidebarProfileRole');
+    
+    if (avatar) avatar.textContent = user.name ? user.name.charAt(0) : 'U';
+    if (name) name.textContent = user.name || 'User Profile';
+    if (role) role.textContent = user.role || 'Guest';
+  }
+
+  // Fetch initial profile detail for sidebar
+  const currentUserId = localStorage.getItem('lfc_user_id') || '1';
+  fetch('/api/users')
+    .then(res => res.json())
+    .then(users => {
+      const user = users.find(u => u.id.toString() === currentUserId);
+      if (user) {
+        document.getElementById('leaderName').textContent = user.name;
+        updateSidebarProfile(user);
+      }
+    });
 
   // Handle Date Selector change
   dateInput.addEventListener('change', () => {

@@ -17,11 +17,101 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize shared user switcher
   window.initUserSwitcher((user) => {
     document.getElementById('headerUserLabel').textContent = `${user.name} (${user.role})`;
+    updateSidebarProfile(user);
     
     // Clear and rebuild the stack from root when user changes, to re-apply role-based restrictions
     localStorage.setItem('lfc_user_id', user.id.toString());
     rebuildStack();
   });
+
+  // Sidebar Controls
+  const menuToggleBtn = document.getElementById('menuToggleBtn');
+  const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+  const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+  const sidebarPanel = document.getElementById('sidebarPanel');
+  const sidebarNav = document.getElementById('sidebarNav');
+  const sidebarSignOutBtn = document.getElementById('sidebarSignOutBtn');
+
+  function openSidebar() {
+    sidebarPanel.classList.add('open');
+    sidebarBackdrop.classList.add('open');
+  }
+
+  function closeSidebar() {
+    sidebarPanel.classList.remove('open');
+    sidebarBackdrop.classList.remove('open');
+  }
+
+  if (menuToggleBtn) menuToggleBtn.addEventListener('click', openSidebar);
+  if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeSidebar);
+  if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeSidebar);
+
+  if (sidebarSignOutBtn) {
+    sidebarSignOutBtn.addEventListener('click', () => {
+      localStorage.removeItem('lfc_user_id');
+      window.location.reload();
+    });
+  }
+
+  // Update Profile Card in Sidebar
+  function updateSidebarProfile(user) {
+    const avatar = document.getElementById('sidebarAvatar');
+    const name = document.getElementById('sidebarProfileName');
+    const role = document.getElementById('sidebarProfileRole');
+    
+    if (avatar) avatar.textContent = user.name ? user.name.charAt(0) : 'U';
+    if (name) name.textContent = user.name || 'User Profile';
+    if (role) role.textContent = user.role || 'Guest';
+  }
+
+  // Sidebar Nav link highlighting
+  function updateActiveSidebarLink(urlPath) {
+    if (!sidebarNav) return;
+    const links = sidebarNav.querySelectorAll('.Sidebar-nav-link');
+    links.forEach(l => {
+      const path = l.getAttribute('data-path');
+      if (path === urlPath) {
+        l.classList.add('active');
+      } else {
+        l.classList.remove('active');
+      }
+    });
+  }
+
+  // Sidebar navigation hook
+  if (sidebarNav) {
+    sidebarNav.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+      
+      const urlPath = new URL(link.href).pathname;
+      if (resolveUrl(urlPath)) {
+        e.preventDefault();
+        closeSidebar();
+        navigateFromSidebar(urlPath);
+      }
+    });
+  }
+
+  function navigateFromSidebar(urlPath) {
+    updateActiveSidebarLink(urlPath);
+    rebuildStack();
+    if (urlPath !== '/') {
+      drillDown(urlPath);
+    }
+  }
+
+  // Fetch initial profile detail for sidebar
+  const currentUserId = localStorage.getItem('lfc_user_id') || '1';
+  fetch('/api/users')
+    .then(res => res.json())
+    .then(users => {
+      const user = users.find(u => u.id.toString() === currentUserId);
+      if (user) {
+        document.getElementById('headerUserLabel').textContent = `${user.name} (${user.role})`;
+        updateSidebarProfile(user);
+      }
+    });
 
   // Rebuild the stack from root
   function rebuildStack() {
@@ -1591,6 +1681,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (currentView !== rootView) {
       currentView.querySelector('.back')?.focus({ preventScroll: true });
     }
+
+    // Sync sidebar active highlight
+    updateActiveSidebarLink(getCurrentUrlPath());
   }
 
   // Set up scrollsnapchange
