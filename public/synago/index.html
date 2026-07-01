@@ -7,10 +7,28 @@
   <link rel="icon" href="/shared/images/icon-192.png">
   <link rel="stylesheet" href="/shared/index.css">
   <style>
+    /* Synago's real app is a flat near-black UI with an orange accent, not
+       the shared cyan/purple glassmorphism used elsewhere in this prototype. */
+    body {
+      background-image:
+        radial-gradient(at 0% 0%, rgba(255, 122, 0, 0.06) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(253, 93, 150, 0.04) 0px, transparent 50%);
+    }
     .synago-container {
       max-width: 1200px;
       margin: 0 auto;
       padding: 2rem 1rem 6rem;
+    }
+    .synago-container .glass {
+      background: #1a1f26;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: none;
+    }
+    .synago-container .form-control:focus {
+      border-color: #ff7a00;
+      box-shadow: 0 0 10px rgba(255, 122, 0, 0.15);
     }
     .header-logo {
       display: flex;
@@ -190,7 +208,7 @@
       <div>
         <div style="font-size: 0.8rem; color: var(--muted-foreground);">LOGGED IN AS</div>
         <h2 style="font-size: 1.25rem;" id="leaderName">Loading profile...</h2>
-        <div id="unitMeta" style="font-size: 0.85rem; color: var(--primary); margin-top: 0.25rem;">Checking assignments...</div>
+        <div id="unitMeta" style="font-size: 0.85rem; color: #ff7a00; margin-top: 0.25rem;">Checking assignments...</div>
       </div>
       <div style="text-align: right;">
         <div style="font-size: 0.8rem; color: var(--muted-foreground);">DATE CONTEXT</div>
@@ -200,12 +218,12 @@
 
     <!-- Admin Notification Block -->
     <div id="adminNotice" class="glass" style="display: none; padding: 3rem; text-align: center;">
-      <h2 style="color: var(--primary); margin-bottom: 1rem;">Administrator Account</h2>
+      <h2 style="color: #ff7a00; margin-bottom: 1rem;">Administrator Account</h2>
       <p style="color: var(--muted-foreground); max-width: 600px; margin: 0 auto 2rem;">
         You are logged in with an administrative profile. Synago is the leader-facing app specifically for Saturdays, where individual unit shepherds upload premobilisation photos and record vehicles.
       </p>
       <div style="display: flex; gap: 1rem; justify-content: center;">
-        <a href="/poimen" class="btn btn-primary">Go to Poimen Dashboard</a>
+        <a href="/poimen" class="btn btn-synago">Go to Poimen Dashboard</a>
         <button class="btn btn-secondary" onclick="document.querySelector('.user-selector-btn').click();">Switch to Unit Leader Profile</button>
       </div>
     </div>
@@ -289,7 +307,7 @@
             </div>
 
             <div class="glass" style="padding: 1rem; border: 1px dashed rgba(255,255,255,0.1); background: rgba(0,0,0,0.1);">
-              <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: var(--primary);">Add Vehicle Transport</h4>
+              <h4 style="font-size: 0.9rem; margin-bottom: 0.75rem; color: #ff7a00;">Add Vehicle Transport</h4>
               <form id="vehicleForm">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
                   <div class="form-group" style="margin: 0;">
@@ -331,7 +349,7 @@
             </div>
             <div style="text-align: right;">
               <div style="font-size: 0.8rem; color: var(--muted-foreground);">OFFICIAL HEADCOUNT</div>
-              <div id="verifiedHeadcountText" style="font-size: 1.5rem; font-weight: 800; color: var(--primary);">-</div>
+              <div id="verifiedHeadcountText" style="font-size: 1.5rem; font-weight: 800; color: #ff7a00;">-</div>
             </div>
           </div>
         </div>

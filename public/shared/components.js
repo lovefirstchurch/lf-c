@@ -36,6 +36,19 @@ window.checkLoginOrRedirect = async function(appName) {
   // Inject Login Screen
   const loginOverlay = document.createElement('div');
   loginOverlay.id = 'lfcLoginScreen';
+
+  const logoColor = appName === 'Synago' ? 'linear-gradient(135deg, #ff7a00, #fd5d96)' : 'linear-gradient(135deg, #a855f7, #3acff8)';
+  const accentColor = appName === 'Synago' ? '#ff7a00' : '#a855f7';
+
+  // Synago's real app is a flat near-black UI with no blur/glass effect;
+  // Poimen keeps the shared glassmorphism look.
+  const bgTint = appName === 'Synago'
+    ? 'radial-gradient(at 0% 0%, rgba(255, 122, 0, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(253, 93, 150, 0.05) 0px, transparent 50%)'
+    : 'radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.15) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%)';
+  const cardStyle = appName === 'Synago'
+    ? 'background: #1a1f26; border: 1px solid rgba(255,255,255,0.05); border-radius: var(--radius-lg);'
+    : 'background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--radius-lg);';
+
   loginOverlay.style.cssText = `
     display: flex;
     align-items: center;
@@ -43,17 +56,12 @@ window.checkLoginOrRedirect = async function(appName) {
     min-height: 100dvh;
     padding: 2rem 1rem;
     background-color: var(--bg-color);
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(var(--primary-rgb), 0.15) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+    background-image: ${bgTint};
     background-attachment: fixed;
   `;
 
-  const logoColor = appName === 'Synago' ? 'linear-gradient(135deg, #ff7a00, #fd5d96)' : 'linear-gradient(135deg, #a855f7, #3acff8)';
-  const accentColor = appName === 'Synago' ? '#ff7a00' : '#a855f7';
-
   loginOverlay.innerHTML = `
-    <div class="glass" style="width: 100%; max-width: 450px; padding: 2.5rem; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.6);">
+    <div style="width: 100%; max-width: 450px; padding: 2.5rem; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.6); ${cardStyle}">
       <!-- Logo -->
       <div style="width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 1.5rem; overflow: hidden; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);">
         <img src="/shared/images/love-first-logo.png" alt="Love First Church" style="width: 100%; height: 100%; object-fit: cover;">
@@ -114,7 +122,7 @@ window.checkLoginOrRedirect = async function(appName) {
           <strong>${u.name}</strong> 
           <div style="font-size:0.7rem; color: var(--muted-foreground);">${u.role}</div>
         </div>
-        <span style="font-family: var(--font-mono); color: var(--primary); font-size:0.75rem;">${u.username}</span>
+        <span style="font-family: var(--font-mono); color: ${accentColor}; font-size:0.75rem;">${u.username}</span>
       `;
 
       item.addEventListener('click', () => {

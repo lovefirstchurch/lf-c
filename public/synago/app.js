@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     totalRow.style.cssText = 'display: flex; justify-content: space-between; font-weight: bold; font-size: 0.9rem; padding: 0.75rem 0; border-top: 1px solid var(--border); margin-top: 0.5rem;';
     totalRow.innerHTML = `
       <span>Total Self-Reported Count:</span>
-      <span style="color: var(--primary);">${totalHeadcount}</span>
+      <span style="color: #ff7a00;">${totalHeadcount}</span>
     `;
     listContainer.appendChild(totalRow);
   }
