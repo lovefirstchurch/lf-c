@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Synago - Saturday Arrivals Portal</title>
+  <link rel="icon" href="/shared/images/icon-192.png">
   <link rel="stylesheet" href="/shared/index.css">
   <style>
     .synago-container {
@@ -18,17 +19,19 @@
       margin-bottom: 2rem;
     }
     .logo-icon {
-      background: linear-gradient(135deg, #ff7a00, #fd5d96);
       width: 40px;
       height: 40px;
       border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 800;
-      color: #fff;
-      font-size: 1.25rem;
+      overflow: hidden;
       box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);
+    }
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .logo-text h1 {
       font-size: 1.5rem;
@@ -171,7 +174,7 @@
     <!-- Top Bar -->
     <div class="flex-between" style="margin-bottom: 2rem;">
       <div class="header-logo">
-        <div class="logo-icon">S</div>
+        <div class="logo-icon"><img src="/shared/images/love-first-logo.png" alt="Love First Church"></div>
         <div class="logo-text">
           <h1>Synago</h1>
           <p>LFC Arrivals Tracker</p>

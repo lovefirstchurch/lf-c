@@ -55,8 +55,8 @@ window.checkLoginOrRedirect = async function(appName) {
   loginOverlay.innerHTML = `
     <div class="glass" style="width: 100%; max-width: 450px; padding: 2.5rem; text-align: center; box-shadow: 0 15px 35px rgba(0,0,0,0.6);">
       <!-- Logo -->
-      <div style="background: ${logoColor}; width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-weight: 800; color: #fff; font-size: 2rem; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); text-transform: uppercase;">
-        ${appName.charAt(0)}
+      <div style="width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 1.5rem; overflow: hidden; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);">
+        <img src="/shared/images/love-first-logo.png" alt="Love First Church" style="width: 100%; height: 100%; object-fit: cover;">
       </div>
       
       <h1 style="font-size: 1.8rem; margin-bottom: 0.25rem; font-family: var(--font-display); background: ${logoColor}; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Poimen - Church Administration Portal</title>
+  <link rel="icon" href="/shared/images/icon-192.png">
   <link rel="stylesheet" href="/shared/index.css">
   <style>
     /* Custom styling for Poimen administration console */
@@ -28,17 +29,19 @@
       gap: 0.5rem;
     }
     .poimen-logo-icon {
-      background: linear-gradient(135deg, #a855f7, #3acff8);
       width: 32px;
       height: 32px;
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 800;
-      font-size: 1rem;
-      color: #fff;
+      overflow: hidden;
       box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+    }
+    .poimen-logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .poimen-logo-text {
       font-family: var(--font-display);
@@ -191,7 +194,7 @@
   <!-- Fixed Top Header -->
   <div class="poimen-header">
     <div class="poimen-logo">
-      <div class="poimen-logo-icon">P</div>
+      <div class="poimen-logo-icon"><img src="/shared/images/love-first-logo.png" alt="Love First Church"></div>
       <div class="poimen-logo-text">Poimen</div>
     </div>
     <div style="display: flex; align-items: center; gap: 1rem;">
