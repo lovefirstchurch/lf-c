@@ -689,7 +689,7 @@ function SynagoDashboard() {
         </div>
       </div>
 
-      <UserSwitcher onUserChanged={handleUserChanged} />
+
     </>
   );
 }

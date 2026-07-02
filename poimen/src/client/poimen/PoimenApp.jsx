@@ -215,7 +215,7 @@ function PoimenConsole() {
 
       <PoimenStack key={stackKey} initialDrill={pendingDrill} />
 
-      <UserSwitcher onUserChanged={handleUserChanged} />
+
       <InviteWatcher />
     </>
   );
