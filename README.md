@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LFC Church Management System
 
-## Getting Started
+Two Next.js apps sharing one Postgres database, managed as npm workspaces:
 
-First, run the development server:
+| Workspace | What it is | Routes |
+|-----------|------------|--------|
+| `synago/` | **Synago** — leader-facing Saturday arrivals portal. Unit shepherds upload premobilisation photos, log bussing vehicles, and track counter verification. | `/synago`, `/api/*` |
+| `poimen/` | **Poimen** — admin console. Hierarchy explorer (areas → governorships → units → members), membership directory, midweek service reports, arrivals approvals, shepherding analytics, audit history. Also serves the landing page at `/`. | `/`, `/poimen`, `/area/:id`, `/unit/:id`, `/directory`, `/arrivals-admin`, ..., `/api/*` |
+| `db/` | Shared data layer: Postgres access, schema init + demo seed, Cloudflare R2 uploads. | — |
+| `shared/` | Shared React components (login gate, sidebar) and the `apiFetch` helper. | — |
+
+## Requirements
+
+- Node.js 20+
+- A Postgres database (Supabase, Neon, or local)
+- A Cloudflare R2 bucket (only needed for photo-upload features)
+
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create `synago/.env.local` and `poimen/.env.local` from `.env.example`
+(both apps must use the same `DATABASE_URL`). On the first API request each
+app creates the `lfc_demo_*` tables and seeds demo areas, users, units, and
+members automatically; `lfc-demo-schema.sql` is an equivalent one-time
+manual setup script.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Running locally
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run dev:poimen   # http://localhost:3000  (landing page + Poimen)
+npm run dev:synago   # start on another port, e.g. --workspace with -p 3001
+```
 
-## Learn More
+Or production builds:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm run start --workspace=@lfc/poimen   # -p 3000
+npm run start --workspace=@lfc/synago   # -p 3001
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Sign in with a seeded username, e.g. `chief_admin`, `shepherd1`,
+`schacenta_leader1`, `arrivals_admin` (see `db/src/database.ts` for the
+full list). Auth is demo-grade: the picked user id is stored in
+localStorage and sent as an `X-User-Id` header.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploying
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy each workspace as its own Next.js project (e.g. two Vercel projects
+with root directories `poimen/` and `synago/`), both configured with the
+same `DATABASE_URL` and the `R2_*` variables. To make the cross-app links
+(`/synago` ↔ `/poimen`) work under one domain, put both apps behind one
+host with rewrites: route `/synago/*` to the Synago deployment and
+everything else to Poimen.

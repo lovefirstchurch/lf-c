@@ -10,7 +10,7 @@ export default function UnitSaturdayView({ routeData }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const aRes = await apiFetch('/api/arrivals/submissions');
+      const aRes = await apiFetch(`/api/arrivals/submissions?date=${routeData.date}`);
       const submissions = await aRes.json();
 
       const found = submissions.find((s) => s.unit_id === routeData.id && s.arrival_id);

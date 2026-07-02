@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch, LoginGate, UserSwitcher, SignOutButton, Sidebar, MenuToggleButton } from '@lfc/shared';
+import { apiFetch, LoginGate, SignOutButton, Sidebar, MenuToggleButton, clearCurrentUserId } from '@lfc/shared';
 
 
 const ADMIN_ROLES = ['Chief Admin', 'Resident Pastor', 'Resident Mother', 'Governorship Admin'];
 
 const NOUNIT_TEXT =
-  'You hold a leadership role but have not been assigned to run a Fellowship or Schacenta yet. Please use the switcher below to choose a leader with a unit, or go to Poimen to configure assignments.';
+  'You hold a leadership role but have not been assigned to run a Fellowship or Schacenta yet. Please sign in as a leader with a unit, or go to Poimen to configure assignments.';
 const ADMIN_TEXT =
   'You are logged in with an administrative profile. Synago is the leader-facing app specifically for Saturdays, where individual unit shepherds upload premobilisation photos and record vehicles.';
 
@@ -27,8 +27,6 @@ function SynagoDashboard() {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [leaderName, setLeaderName] = useState('Loading profile...');
   const [unitMeta, setUnitMeta] = useState('Checking assignments...');
-  // idle: nothing loaded yet (mirrors the vanilla app, which only loads the
-  // dashboard after a user-switcher change or a date change).
   const [mode, setMode] = useState('idle'); // idle | admin | nounit | leader
   const [currentUnit, setCurrentUnit] = useState(null);
   const [rosterTitle, setRosterTitle] = useState('Fellowship Roster');
@@ -47,7 +45,8 @@ function SynagoDashboard() {
   const premobStepRef = useRef(null);
   const rosterTitleRef = useRef(null);
 
-  // Fetch initial profile detail for the header and sidebar
+  // Fetch initial profile detail for the header and sidebar, then load the
+  // dashboard for the logged-in user.
   useEffect(() => {
     const currentUserId = localStorage.getItem('lfc_user_id') || '1';
     fetch('/api/users')
@@ -57,8 +56,10 @@ function SynagoDashboard() {
         if (user) {
           setLeaderName(user.name);
           setSidebarUser(user);
+          loadDashboard(user, date);
         }
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function navScroll(target) {
@@ -141,12 +142,6 @@ function SynagoDashboard() {
     } catch (err) {
       console.error('Arrivals load failed', err);
     }
-  }
-
-  function handleUserChanged(user) {
-    setLeaderName(user.name);
-    setSidebarUser(user);
-    loadDashboard(user, date);
   }
 
   function handleDateChange(e) {
@@ -393,9 +388,12 @@ function SynagoDashboard() {
               </a>
               <button
                 className="btn btn-secondary"
-                onClick={() => document.querySelector('.user-selector-btn').click()}
+                onClick={() => {
+                  clearCurrentUserId();
+                  window.location.reload();
+                }}
               >
-                Switch to Unit Leader Profile
+                Sign In as a Unit Leader
               </button>
             </div>
           </div>

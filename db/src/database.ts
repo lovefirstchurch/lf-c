@@ -310,5 +310,14 @@ export async function initDb(): Promise<void> {
 
     // 6. Seed Config
     await run("INSERT INTO lfc_demo_arrivals_config (id, cutoff_time, vehicle_types, headcount_approval_required) VALUES (1, '08:30', '[\"Bus\", \"Sprinter\", \"Taxi\", \"Private\"]', 1)");
+
+    // Seeding used explicit ids, which does not advance the SERIAL
+    // sequences; bump them so later inserts don't collide.
+    await exec(`
+      SELECT setval(pg_get_serial_sequence('lfc_demo_users', 'id'), (SELECT MAX(id) FROM lfc_demo_users));
+      SELECT setval(pg_get_serial_sequence('lfc_demo_areas', 'id'), (SELECT MAX(id) FROM lfc_demo_areas));
+      SELECT setval(pg_get_serial_sequence('lfc_demo_governorships', 'id'), (SELECT MAX(id) FROM lfc_demo_governorships));
+      SELECT setval(pg_get_serial_sequence('lfc_demo_units', 'id'), (SELECT MAX(id) FROM lfc_demo_units));
+    `);
   }
 }

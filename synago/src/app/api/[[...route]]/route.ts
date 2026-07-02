@@ -73,6 +73,38 @@ export async function GET(
       return NextResponse.json(user);
     }
 
+    // GET /api/units/:id/members
+    if (segments.length === 3 && segments[0] === 'units' && segments[2] === 'members') {
+      const unitId = parseInt(segments[1]);
+      const members = await all("SELECT * FROM lfc_demo_members WHERE unit_id = ? AND is_active = 1", [unitId]);
+      return NextResponse.json(members);
+    }
+
+    // GET /api/hierarchy
+    if (path === '/hierarchy') {
+      const areasList = await all("SELECT * FROM lfc_demo_areas");
+      const govsList = await all(`
+        SELECT g.*, u.name as governor_name, ua.name as admin_name
+        FROM lfc_demo_governorships g
+        LEFT JOIN lfc_demo_users u ON g.governor_id = u.id
+        LEFT JOIN lfc_demo_users ua ON g.admin_id = ua.id
+      `);
+      const unitsList = await all(`
+        SELECT u.*, us.name as leader_name
+        FROM lfc_demo_units u
+        LEFT JOIN lfc_demo_users us ON u.leader_id = us.id
+      `);
+
+      const tree = areasList.map(a => {
+        const governorships = govsList.filter((g: any) => g.area_id === a.id).map((g: any) => {
+          const units = unitsList.filter((u: any) => u.governorship_id === g.id);
+          return { ...g, units };
+        });
+        return { ...a, governorships };
+      });
+      return NextResponse.json(tree);
+    }
+
     // GET /api/synago/arrivals/status
     if (path === '/synago/arrivals/status') {
       const unitId = user.unit_id;
@@ -135,7 +167,7 @@ export async function POST(
         }
       });
     } else {
-      body = await req.json();
+      body = await req.json().catch(() => ({}));
     }
 
     // POST /api/synago/arrivals/premob
@@ -274,8 +306,8 @@ export async function DELETE(
     if (errorResponse) return errorResponse;
 
     // DELETE /api/synago/arrivals/vehicle/:id
-    if (segments.length === 5 && segments[0] === 'synago' && segments[1] === 'arrivals' && segments[2] === 'vehicle') {
-      const vehicleId = parseInt(segments[4]);
+    if (segments.length === 4 && segments[0] === 'synago' && segments[1] === 'arrivals' && segments[2] === 'vehicle') {
+      const vehicleId = parseInt(segments[3]);
       const vehicle = await get("SELECT * FROM lfc_demo_saturday_vehicles WHERE id = ?", [vehicleId]);
       if (!vehicle) {
         return NextResponse.json({ error: 'Vehicle not found.' }, { status: 404 });
