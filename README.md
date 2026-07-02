@@ -1,11 +1,13 @@
 # LFC Church Management System
 
-Two Next.js apps sharing one Postgres database, managed as npm workspaces:
+Two independent Next.js apps that share one Postgres database, managed as
+npm workspaces. Each is meant to be deployed on its own domain — there is
+no UI coupling or cross-linking between them.
 
 | Workspace | What it is | Routes |
 |-----------|------------|--------|
-| `synago/` | **Synago** — leader-facing Saturday arrivals portal. Unit shepherds upload premobilisation photos, log bussing vehicles, and track counter verification. | `/synago`, `/api/*` |
-| `poimen/` | **Poimen** — admin console. Hierarchy explorer (areas → governorships → units → members), membership directory, midweek service reports, arrivals approvals, shepherding analytics, audit history. Also serves the landing page at `/`. | `/`, `/poimen`, `/area/:id`, `/unit/:id`, `/directory`, `/arrivals-admin`, ..., `/api/*` |
+| `synago/` | **Synago** — leader-facing Saturday arrivals portal. Unit shepherds upload premobilisation photos, log bussing vehicles, and track counter verification. | `/`, `/synago`, `/api/*` |
+| `poimen/` | **Poimen** — admin console. Hierarchy explorer (areas → governorships → units → members), membership directory, service reports, arrivals approvals, shepherding analytics, audit history. | `/`, `/poimen`, `/area/:id`, `/unit/:id`, `/directory`, `/services`, `/arrivals-admin`, ..., `/api/*` |
 | `db/` | Shared data layer: Postgres access, schema init + demo seed, Cloudflare R2 uploads. | — |
 | `shared/` | Shared React components (login gate, sidebar) and the `apiFetch` helper. | — |
 
@@ -30,7 +32,7 @@ manual setup script.
 ## Running locally
 
 ```bash
-npm run dev:poimen   # http://localhost:3000  (landing page + Poimen)
+npm run dev:poimen   # http://localhost:3000
 npm run dev:synago   # start on another port, e.g. --workspace with -p 3001
 ```
 
@@ -49,9 +51,7 @@ localStorage and sent as an `X-User-Id` header.
 
 ## Deploying
 
-Deploy each workspace as its own Next.js project (e.g. two Vercel projects
-with root directories `poimen/` and `synago/`), both configured with the
-same `DATABASE_URL` and the `R2_*` variables. To make the cross-app links
-(`/synago` ↔ `/poimen`) work under one domain, put both apps behind one
-host with rewrites: route `/synago/*` to the Synago deployment and
-everything else to Poimen.
+Deploy each workspace as its own independent project (e.g. two Vercel
+projects with root directories `poimen/` and `synago/`, on two separate
+domains). Configure both with the same `DATABASE_URL` and the `R2_*`
+variables — that shared database is the only thing connecting them.
