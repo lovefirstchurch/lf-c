@@ -137,12 +137,14 @@ function PoimenConsole() {
     fetch('/api/users')
       .then((res) => res.json())
       .then((users) => {
+        if (!Array.isArray(users)) return;
         const user = users.find((u) => u.id.toString() === currentUserId);
         if (user) {
           setHeaderUserLabel(`${user.name} (${user.role})`);
           setSidebarUser(user);
         }
-      });
+      })
+      .catch((err) => console.error(err));
   }, []);
 
   function navigateFromSidebar(path) {

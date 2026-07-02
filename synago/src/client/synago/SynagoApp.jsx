@@ -52,13 +52,15 @@ function SynagoDashboard() {
     fetch('/api/users')
       .then((res) => res.json())
       .then((users) => {
+        if (!Array.isArray(users)) return;
         const user = users.find((u) => u.id.toString() === currentUserId);
         if (user) {
           setLeaderName(user.name);
           setSidebarUser(user);
           loadDashboard(user, date);
         }
-      });
+      })
+      .catch((err) => console.error(err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -151,9 +153,11 @@ function SynagoDashboard() {
     fetch(`/api/users`)
       .then((res) => res.json())
       .then((users) => {
+        if (!Array.isArray(users)) return;
         const user = users.find((u) => u.id.toString() === userId);
         if (user) loadDashboard(user, newDate);
-      });
+      })
+      .catch((err) => console.error(err));
   }
 
   // Premobilisation Form Submission
