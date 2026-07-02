@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import LoginGate from '../shared/LoginGate.jsx';
 import UserSwitcher, { SignOutButton } from '../shared/UserSwitcher.jsx';
+import Sidebar, { MenuToggleButton } from '../shared/Sidebar.jsx';
 import { setCurrentUserId } from '../shared/api.js';
 import RootView from './views/RootView.jsx';
 import AreaView from './views/AreaView.jsx';
@@ -58,32 +59,156 @@ export default function PoimenApp() {
   );
 }
 
+// Sidebar navigation entries (ported from the drawer added to
+// public/poimen/index.html). data-path semantics: '/' is the root view,
+// which lives at /poimen in this port.
+const SIDEBAR_NAV = [
+  {
+    path: '/',
+    label: 'Hierarchy Explorer',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+      </svg>
+    ),
+  },
+  {
+    path: '/directory',
+    label: 'Membership Directory',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+        <circle cx="9" cy="7" r="4"></circle>
+        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+      </svg>
+    ),
+  },
+  {
+    path: '/arrivals-admin',
+    label: 'Arrivals Admin Console',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="1" y="3" width="15" height="13" rx="2" ry="2"></rect>
+        <line x1="16" y1="8" x2="20" y2="8"></line>
+        <line x1="16" y1="12" x2="20" y2="12"></line>
+        <line x1="16" y1="16" x2="20" y2="16"></line>
+      </svg>
+    ),
+  },
+  {
+    path: '/shepherding',
+    label: 'Shepherding Accountability',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"></line>
+        <line x1="12" y1="20" x2="12" y2="4"></line>
+        <line x1="6" y1="20" x2="6" y2="14"></line>
+      </svg>
+    ),
+  },
+  {
+    path: '/history',
+    label: 'Universal History Log',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+    ),
+  },
+];
+
 function PoimenConsole() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [headerUserLabel, setHeaderUserLabel] = useState('Loading...');
   // Bumping this key remounts the stack from the root view, mirroring the
-  // vanilla app's rebuildStack() after a user switch.
+  // vanilla app's rebuildStack() after a user switch or sidebar navigation.
   const [stackKey, setStackKey] = useState(0);
+  // Path the freshly rebuilt stack should immediately drill into (the
+  // vanilla navigateFromSidebar did rebuildStack() + drillDown(path)).
+  const [pendingDrill, setPendingDrill] = useState(null);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarUser, setSidebarUser] = useState(null);
+
+  // Fetch initial profile detail for the header label and sidebar
+  useEffect(() => {
+    const currentUserId = localStorage.getItem('lfc_user_id') || '1';
+    fetch('/api/users')
+      .then((res) => res.json())
+      .then((users) => {
+        const user = users.find((u) => u.id.toString() === currentUserId);
+        if (user) {
+          setHeaderUserLabel(`${user.name} (${user.role})`);
+          setSidebarUser(user);
+        }
+      });
+  }, []);
 
   function handleUserChanged(user) {
     setHeaderUserLabel(`${user.name} (${user.role})`);
+    setSidebarUser(user);
     setCurrentUserId(user.id);
     navigate(ROOT_PATH, { replace: true, state: { depth: 0 } });
+    setPendingDrill(null);
     setStackKey((k) => k + 1);
+  }
+
+  function navigateFromSidebar(path) {
+    setSidebarOpen(false);
+    navigate(ROOT_PATH, { replace: true, state: { depth: 0 } });
+    setPendingDrill(path === '/' ? null : path);
+    setStackKey((k) => k + 1);
+  }
+
+  function isActiveNav(path) {
+    if (path === '/') {
+      return location.pathname === '/' || resolveUrl(location.pathname)?.type === 'root';
+    }
+    return location.pathname === path;
   }
 
   return (
     <>
+      <Sidebar
+        appName="Poimen"
+        gradient="linear-gradient(to right, #a855f7, #3acff8)"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        user={sidebarUser}
+      >
+        {SIDEBAR_NAV.map((item) => (
+          <a
+            key={item.path}
+            href={item.path === '/' ? ROOT_PATH : item.path}
+            className={`Sidebar-nav-link${isActiveNav(item.path) ? ' active' : ''}`}
+            onClick={(e) => {
+              e.preventDefault();
+              navigateFromSidebar(item.path);
+            }}
+          >
+            {item.icon}
+            {item.label}
+          </a>
+        ))}
+      </Sidebar>
+
       {/* Fixed Top Header */}
       <div className="poimen-header">
         <div className="poimen-logo">
+          <MenuToggleButton onClick={() => setSidebarOpen(true)} />
           <div className="poimen-logo-icon">
             <img src="/shared/images/love-first-logo.png" alt="Love First Church" />
           </div>
           <div className="poimen-logo-text">Poimen</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>{headerUserLabel}</span>
+          <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', display: 'none' }}>
+            {headerUserLabel}
+          </span>
           <a href="/synago" className="btn btn-secondary btn-sm">
             Switch to Synago (App 1)
           </a>
@@ -91,7 +216,7 @@ function PoimenConsole() {
         </div>
       </div>
 
-      <PoimenStack key={stackKey} />
+      <PoimenStack key={stackKey} initialDrill={pendingDrill} />
 
       <UserSwitcher onUserChanged={handleUserChanged} />
       <InviteWatcher />
@@ -102,7 +227,7 @@ function PoimenConsole() {
 // --- STACK ROUTER NAVIGATION ENGINE (ported from public/poimen/app.js) ---
 // Horizontal CSS scroll-snap stack: each drill-down appends a view and the
 // browser history depth tracks which view is active.
-function PoimenStack() {
+function PoimenStack({ initialDrill }) {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
@@ -126,6 +251,12 @@ function PoimenStack() {
   const compensatePrependRef = useRef(false);
   const returnFocusRef = useRef(new WeakMap());
   const didInitRef = useRef(false);
+  // While a programmatic scroll is in flight, snap/intersection events can
+  // still arrive for the view we are leaving (notably the freshly-observed
+  // root right after a rebuild+drill); acting on them would trim the new
+  // view and pop history. Track the scroll target so stale events are
+  // ignored (time-bounded, so an interrupted animation can't wedge us).
+  const scrollTargetRef = useRef(null);
 
   function setDepth(d) {
     currentDepthRef.current = d;
@@ -212,6 +343,9 @@ function PoimenStack() {
       state: { depth: 0 },
     });
     didInitRef.current = true;
+    // Sidebar navigation rebuilds the stack at the root and immediately
+    // drills into the chosen section (vanilla navigateFromSidebar).
+    if (initialDrill) drillDown(initialDrill);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -246,6 +380,7 @@ function PoimenStack() {
     const multiStep = Math.abs(toIdx - fromIdx) > 1;
     const behavior = pendingBehaviorRef.current ?? (forward || multiStep ? 'instant' : 'auto');
     pendingBehaviorRef.current = null;
+    scrollTargetRef.current = { idx: toIdx, at: performance.now() };
     el.scrollTo({ left: toIdx * el.clientWidth, behavior });
   }, [stack, currentDepth]);
 
@@ -258,6 +393,15 @@ function PoimenStack() {
     const idx = [...el.children].indexOf(viewEl);
     const st = stackStateRef.current;
     if (idx < 0 || idx >= st.length) return;
+
+    const target = scrollTargetRef.current;
+    if (target != null) {
+      if (idx !== target.idx && performance.now() - target.at < 1500) {
+        return; // stale event from the view we are scrolling away from
+      }
+      scrollTargetRef.current = null;
+    }
+
     const entry = st[idx];
 
     if (st.length > idx + 1) {

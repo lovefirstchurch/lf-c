@@ -9,7 +9,12 @@ export default function ShepherdingView() {
   useEffect(() => {
     apiFetch('/api/shepherding/report')
       .then((res) => res.json())
-      .then(setList)
+      .then((data) => {
+        // Non-admin roles get a 403 {error} payload; like the vanilla app,
+        // log it and leave the loading row in place.
+        if (Array.isArray(data)) setList(data);
+        else console.error(data);
+      })
       .catch((err) => {
         console.error(err);
       });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../shared/api.js';
 import LoginGate from '../shared/LoginGate.jsx';
 import UserSwitcher, { SignOutButton } from '../shared/UserSwitcher.jsx';
+import Sidebar, { MenuToggleButton } from '../shared/Sidebar.jsx';
 import './synago.css';
 
 const ADMIN_ROLES = ['Chief Admin', 'Resident Pastor', 'Resident Mother', 'Governorship Admin'];
@@ -41,6 +42,34 @@ function SynagoDashboard() {
   const [vehicleHeadcount, setVehicleHeadcount] = useState('');
   const premobFileRef = useRef(null);
   const vehicleFileRef = useRef(null);
+
+  // Collapsible side drawer navigation
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarUser, setSidebarUser] = useState(null);
+  const [activeNav, setActiveNav] = useState('arrivals');
+  const premobStepRef = useRef(null);
+  const rosterTitleRef = useRef(null);
+
+  // Fetch initial profile detail for the header and sidebar
+  useEffect(() => {
+    const currentUserId = localStorage.getItem('lfc_user_id') || '1';
+    fetch('/api/users')
+      .then((res) => res.json())
+      .then((users) => {
+        const user = users.find((u) => u.id.toString() === currentUserId);
+        if (user) {
+          setLeaderName(user.name);
+          setSidebarUser(user);
+        }
+      });
+  }, []);
+
+  function navScroll(target) {
+    setSidebarOpen(false);
+    setActiveNav(target);
+    const el = target === 'arrivals' ? premobStepRef.current : rosterTitleRef.current;
+    el?.scrollIntoView({ behavior: 'smooth' });
+  }
 
   // Load Leader Dashboard
   async function loadDashboard(user, dateVal) {
@@ -119,6 +148,7 @@ function SynagoDashboard() {
 
   function handleUserChanged(user) {
     setLeaderName(user.name);
+    setSidebarUser(user);
     loadDashboard(user, date);
   }
 
@@ -259,10 +289,50 @@ function SynagoDashboard() {
 
   return (
     <>
+      <Sidebar
+        appName="Synago"
+        gradient="linear-gradient(to right, #ff7a00, #fd5d96)"
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        user={sidebarUser}
+      >
+        <a
+          href="#"
+          className={`Sidebar-nav-link${activeNav === 'arrivals' ? ' active' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            navScroll('arrivals');
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+            <line x1="4" y1="22" x2="4" y2="15"></line>
+          </svg>
+          Saturday Arrivals Ritual
+        </a>
+        <a
+          href="#"
+          className={`Sidebar-nav-link${activeNav === 'roster' ? ' active' : ''}`}
+          onClick={(e) => {
+            e.preventDefault();
+            navScroll('roster');
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          My Unit Roster
+        </a>
+      </Sidebar>
+
       <div className="synago-container">
         {/* Top Bar */}
         <div className="flex-between" style={{ marginBottom: '2rem' }}>
-          <div className="header-logo">
+          <div className="header-logo" style={{ display: 'flex', alignItems: 'center' }}>
+            <MenuToggleButton onClick={() => setSidebarOpen(true)} />
             <div className="logo-icon">
               <img src="/shared/images/love-first-logo.png" alt="Love First Church" />
             </div>
@@ -344,6 +414,7 @@ function SynagoDashboard() {
 
             <div className="glass dashboard-panel">
               <h3
+                ref={rosterTitleRef}
                 style={{
                   fontSize: '1.1rem',
                   marginBottom: '1.25rem',
@@ -397,7 +468,7 @@ function SynagoDashboard() {
             </h2>
 
             {/* Step 1: Premobilisation */}
-            <div className="glass dashboard-panel ritual-step active">
+            <div className="glass dashboard-panel ritual-step active" ref={premobStepRef}>
               <div className="ritual-step-num">1</div>
               <div className="ritual-step-title">
                 Premobilisation Photo

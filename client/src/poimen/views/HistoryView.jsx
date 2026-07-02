@@ -9,7 +9,13 @@ export default function HistoryView() {
   useEffect(() => {
     apiFetch('/api/audit-logs')
       .then((res) => res.json())
-      .then(setLogs);
+      .then((data) => {
+        // Non-admin roles get a 403 {error} payload; like the vanilla app,
+        // log it and leave the loading row in place.
+        if (Array.isArray(data)) setLogs(data);
+        else console.error(data);
+      })
+      .catch((err) => console.error(err));
   }, []);
 
   return (
