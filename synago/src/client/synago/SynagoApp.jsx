@@ -322,112 +322,64 @@ export function SynagoDashboard({ view = 'dashboard' }) {
   const activeLabel = (NAV.find((n) => n.key === activeNav) || NAV[0]).label;
 
   return (
-    <>
-      <Sidebar
-        appName="Synago"
-        gradient="linear-gradient(to right, #ff7a00, #fd5d96)"
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        user={sidebarUser}
-      >
-        {NAV.map((item) => (
-          <Link
-            key={item.key}
-            href={item.key === 'dashboard' ? '/' : `/${item.key}`}
-            className={`Sidebar-nav-link${activeNav === item.key ? ' active' : ''}`}
-            onClick={() => setSidebarOpen(false)}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        ))}
-      </Sidebar>
-
-      <div className="synago-container">
-        {/* Top Bar */}
-        <div className="flex-between" style={{ marginBottom: '2rem' }}>
-          <div className="header-logo" style={{ display: 'flex', alignItems: 'center' }}>
-            <MenuToggleButton onClick={() => setSidebarOpen(true)} />
-            <div className="logo-icon">
-              <img src="/shared/images/love-first-logo.png" alt="Love First Church" />
-            </div>
-            <div className="logo-text">
-              <h1>Synago</h1>
-              <p>LFC Arrivals Tracker</p>
-            </div>
-          </div>
+    <div style={{ maxWidth: 800, margin: '0 auto' }}>
+      {/* Date Picker & Unit Meta Header */}
+      {mode === 'leader' && (
+        <div className="flex-between glass" style={{ padding: '1rem 1.25rem', marginBottom: '1.5rem', borderRadius: 'var(--radius-lg)' }}>
           <div>
-            <SignOutButton />
+            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>{unitMeta}</h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Saturday Arrivals Flow</p>
           </div>
-        </div>
-
-        {/* User Profile Header */}
-        <div
-          className="glass"
-          style={{
-            padding: '1.5rem',
-            marginBottom: '2rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>LOGGED IN AS</div>
-            <h2 style={{ fontSize: '1.25rem' }}>{leaderName}</h2>
-            <div style={{ fontSize: '0.85rem', color: '#ff7a00', marginTop: '0.25rem' }}>{unitMeta}</div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>DATE CONTEXT</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Date:</span>
             <input
               type="date"
               className="form-control"
-              style={{ width: 'auto', padding: '0.5rem', background: 'rgba(0,0,0,0.2)' }}
+              style={{ width: 'auto', padding: '0.4rem 0.6rem', fontSize: '0.85rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)' }}
               value={date}
               onChange={handleDateChange}
             />
           </div>
         </div>
+      )}
 
-        {/* Admin / no-unit notice */}
-        {(mode === 'admin' || mode === 'nounit') && (
-          <div className="glass" style={{ padding: '3rem', textAlign: 'center' }}>
-            <h2 style={{ color: '#ff7a00', marginBottom: '1rem' }}>Administrator Account</h2>
-            <p style={{ color: 'var(--muted-foreground)', maxWidth: 600, margin: '0 auto 2rem' }}>
-              {mode === 'nounit' ? NOUNIT_TEXT : ADMIN_TEXT}
-            </p>
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  clearCurrentUserId();
-                  window.location.reload();
-                }}
-              >
-                Sign In as a Unit Leader
-              </button>
-            </div>
+      {/* Admin / no-unit notice */}
+      {(mode === 'admin' || mode === 'nounit') && (
+        <div className="glass" style={{ padding: '3rem', textAlign: 'center', borderRadius: 'var(--radius-lg)' }}>
+          <h2 style={{ color: '#ff7a00', marginBottom: '1rem' }}>Administrator Account</h2>
+          <p style={{ color: 'var(--muted-foreground)', maxWidth: 600, margin: '0 auto 2rem' }}>
+            {mode === 'nounit' ? NOUNIT_TEXT : ADMIN_TEXT}
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                clearCurrentUserId();
+                window.location.reload();
+              }}
+            >
+              Sign In as a Unit Leader
+            </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Leader workspace — one focused section at a time */}
-        {mode === 'leader' && (
-          <div className="synago-section">
-            <div className="synago-section-head">
-              <h2 className="synago-section-title">{activeLabel}</h2>
-              {activeNav !== 'members' && (
-                <span
-                  className={ritualBadge.className}
-                  style={{ background: 'rgba(255, 122, 0, 0.15)', color: '#ff7a00' }}
-                >
-                  {ritualBadge.text}
-                </span>
-              )}
-            </div>
+      {/* Leader workspace — one focused section at a time */}
+      {mode === 'leader' && (
+        <div className="synago-section">
+          <div className="synago-section-head">
+            <h2 className="synago-section-title">{activeLabel}</h2>
+            {activeNav !== 'members' && (
+              <span
+                className={ritualBadge.className}
+                style={{ background: 'rgba(255, 122, 0, 0.15)', color: '#ff7a00' }}
+              >
+                {ritualBadge.text}
+              </span>
+            )}
+          </div>
 
-            {/* DASHBOARD */}
+          {/* DASHBOARD */}
             {activeNav === 'dashboard' && (
               <>
                 <div className="synago-stat-grid">
@@ -721,7 +673,6 @@ export function SynagoDashboard({ view = 'dashboard' }) {
           </div>
         )}
       </div>
-    </>
   );
 }
 
