@@ -62,7 +62,7 @@ function LoginScreen({ appName }) {
     if (userFound) {
       loginUser(userFound);
     } else {
-      alert('Invalid username. Please choose one from the developer credentials list below.');
+      alert('Invalid username. Please try again.');
     }
   }
 
@@ -134,7 +134,7 @@ function LoginScreen({ appName }) {
             <input
               type="text"
               className="form-control"
-              placeholder="Enter username (e.g. chief_admin)"
+              placeholder="Enter username"
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -154,107 +154,7 @@ function LoginScreen({ appName }) {
             Sign In
           </button>
         </form>
-
-        <div
-          style={{
-            margin: '2rem 0 1.5rem',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            position: 'relative',
-            textAlign: 'center',
-          }}
-        >
-          <span
-            style={{
-              position: 'absolute',
-              top: -10,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: '#0e151b',
-              padding: '0 0.75rem',
-              fontSize: '0.75rem',
-              color: 'var(--muted-foreground)',
-            }}
-          >
-            DEVELOPER DEMO PROFILES
-          </span>
-        </div>
-
-        <div
-          style={{
-            textAlign: 'left',
-            maxHeight: 200,
-            overflowY: 'auto',
-            background: 'rgba(0,0,0,0.2)',
-            padding: '0.75rem',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid rgba(255,255,255,0.04)',
-          }}
-        >
-          {users === null ? (
-            <div
-              style={{
-                color: 'var(--muted-foreground)',
-                fontSize: '0.8rem',
-                textAlign: 'center',
-              }}
-            >
-              Loading credentials...
-            </div>
-          ) : (
-            users.map((u) => (
-              <QuickLoginItem
-                key={u.id}
-                user={u}
-                accentColor={accentColor}
-                onSelect={() => {
-                  setUsername(u.username);
-                  loginUser(u);
-                }}
-              />
-            ))
-          )}
-        </div>
       </div>
-    </div>
-  );
-}
-
-function QuickLoginItem({ user, accentColor, onSelect }) {
-  const [hover, setHover] = useState(false);
-
-  return (
-    <div
-      onClick={onSelect}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        padding: '0.5rem',
-        marginBottom: '0.25rem',
-        borderRadius: 4,
-        background: hover ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)',
-        cursor: 'pointer',
-        display: 'flex',
-        justifyContent: 'space-between',
-        fontSize: '0.8rem',
-        borderBottom: '1px solid rgba(255,255,255,0.02)',
-        transition: 'all 0.2s',
-      }}
-    >
-      <div>
-        <strong>{user.name}</strong>
-        <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
-          {user.role}
-        </div>
-      </div>
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          color: accentColor,
-          fontSize: '0.75rem',
-        }}
-      >
-        {user.username}
-      </span>
     </div>
   );
 }
