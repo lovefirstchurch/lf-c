@@ -46,8 +46,15 @@ npm run start --workspace=@lfc/synago   # -p 3001
 
 Sign in with a seeded username, e.g. `chief_admin`, `shepherd1`,
 `schacenta_leader1`, `arrivals_admin` (see `db/src/database.ts` for the
-full list). Auth is demo-grade: the picked user id is stored in
-localStorage and sent as an `X-User-Id` header.
+full list), and the default password **`changeme123`**. Every seeded or
+admin-created account starts on this password and is forced to set its
+own on first login (`must_change_password`). After login, the session
+is just the user id in localStorage sent back as an `X-User-Id` header —
+there's no cookie/session store.
+
+Only **Chief Admin** can create new leader accounts (Governor,
+Governorship Admin, Area 1 Shepherd, Area 2 Schacenta Leader) via
+Poimen's Governorship and Unit pages.
 
 ## Deploying
 

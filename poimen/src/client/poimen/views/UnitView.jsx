@@ -82,6 +82,7 @@ export default function UnitView({ routeData }) {
           members,
           me,
           isScopeAdmin,
+          isChiefAdmin: me.role === 'Chief Admin',
           isLeader,
           candidateLeaders,
           unitSubmissions,
@@ -287,13 +288,15 @@ export default function UnitView({ routeData }) {
                     >
                       Save
                     </button>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                      onClick={() => setShowNewLeader(true)}
-                    >
-                      + New Leader
-                    </button>
+                    {data.isChiefAdmin && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        onClick={() => setShowNewLeader(true)}
+                      >
+                        + New Leader
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <form onSubmit={handleNewLeaderSave}>
