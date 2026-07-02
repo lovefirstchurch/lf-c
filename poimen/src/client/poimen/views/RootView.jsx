@@ -76,6 +76,14 @@ export default function RootView() {
               </div>
               <DrilldownArrow />
             </a>
+            <a href="/leaders" className="drilldown-item glass glass-hover">
+              <DrilldownIcon>{Icons.people}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Leaders Directory</div>
+                <div className="drilldown-subtitle">Manage church leaders and roles</div>
+              </div>
+              <DrilldownArrow />
+            </a>
             <a href="/history" className="drilldown-item glass glass-hover">
               <DrilldownIcon>{Icons.clock}</DrilldownIcon>
               <div className="drilldown-item-body">

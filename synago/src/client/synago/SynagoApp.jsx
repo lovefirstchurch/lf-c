@@ -34,8 +34,8 @@ const NAV = [
     ),
   },
   {
-    key: 'roster',
-    label: 'My Roster',
+    key: 'members',
+    label: 'Members',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
@@ -67,7 +67,7 @@ function SynagoDashboard() {
   const [unitMeta, setUnitMeta] = useState('Checking assignments...');
   const [mode, setMode] = useState('idle'); // idle | admin | nounit | leader
   const [currentUnit, setCurrentUnit] = useState(null);
-  const [rosterTitle, setRosterTitle] = useState('Fellowship Roster');
+  const [rosterTitle, setRosterTitle] = useState('Fellowship Members');
   const [members, setMembers] = useState(null);
   const [arrivalsData, setArrivalsData] = useState(null);
 
@@ -155,7 +155,7 @@ function SynagoDashboard() {
       if (unitFound) {
         setCurrentUnit(unitFound);
         const typeLabel = unitFound.type === 'fellowship' ? 'Area 1 Fellowship' : 'Area 2 Schacenta';
-        setRosterTitle(`${unitFound.name} (${typeLabel})`);
+        setRosterTitle(`${unitFound.name} Members`);
         setUnitMeta(`${unitFound.name} · ${typeLabel}`);
       }
 
@@ -414,7 +414,7 @@ function SynagoDashboard() {
           <div className="synago-section">
             <div className="synago-section-head">
               <h2 className="synago-section-title">{activeLabel}</h2>
-              {activeNav !== 'roster' && (
+              {activeNav !== 'members' && (
                 <span
                   className={ritualBadge.className}
                   style={{ background: 'rgba(255, 122, 0, 0.15)', color: '#ff7a00' }}
@@ -676,8 +676,8 @@ function SynagoDashboard() {
               </>
             )}
 
-            {/* ROSTER */}
-            {activeNav === 'roster' && (
+            {/* MEMBERS */}
+            {activeNav === 'members' && (
               <div className="glass dashboard-panel">
                 <h3
                   style={{
