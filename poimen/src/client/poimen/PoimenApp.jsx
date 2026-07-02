@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { LoginGate, SignOutButton, Sidebar, MenuToggleButton, setCurrentUserId } from '@lfc/shared';
+import { LoginGate, SignOutButton, Sidebar, MenuToggleButton, apiFetch, setCurrentUserId } from '@lfc/shared';
 import RootView from './views/RootView.jsx';
 import AreaView from './views/AreaView.jsx';
 import GovernorshipView from './views/GovernorshipView.jsx';
@@ -147,7 +147,7 @@ function PoimenConsole() {
   // Fetch initial profile detail for the header label and sidebar
   useEffect(() => {
     const currentUserId = localStorage.getItem('lfc_user_id') || '1';
-    fetch('/api/users')
+    apiFetch('/api/users')
       .then((res) => res.json())
       .then((users) => {
         if (!Array.isArray(users)) return;

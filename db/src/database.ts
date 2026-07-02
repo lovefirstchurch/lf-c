@@ -1,4 +1,5 @@
 import postgres from 'postgres';
+import bcrypt from 'bcryptjs';
 
 let sqlInstance: ReturnType<typeof postgres> | null = null;
 
@@ -119,6 +120,47 @@ export async function addAuditLog(
   }
 }
 
+// Password auth. Every seeded/admin-created account starts on this default
+// password with must_change_password set, mirroring the production
+// system's "default_password_must_change" pattern.
+export const DEFAULT_PASSWORD = 'changeme123';
+
+// Columns safe to hand back to the client -- never password_hash.
+const SAFE_USER_COLUMNS = 'id, username, name, role, governorship_id, unit_id, must_change_password';
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function findUserById(id: number): Promise<any | undefined> {
+  return get(`SELECT ${SAFE_USER_COLUMNS} FROM lfc_demo_users WHERE id = ?`, [id]);
+}
+
+export async function listUsers(): Promise<any[]> {
+  return all(`SELECT ${SAFE_USER_COLUMNS} FROM lfc_demo_users`);
+}
+
+// Verifies a username/password pair and returns the sanitized user row
+// (never the hash) on success, or null on any failure.
+export async function verifyLogin(username: string, password: string): Promise<any | null> {
+  const row = await get<any>("SELECT * FROM lfc_demo_users WHERE username = ?", [username]);
+  if (!row || !row.password_hash) return null;
+
+  const valid = await bcrypt.compare(password, row.password_hash);
+  if (!valid) return null;
+
+  const { password_hash, ...safe } = row;
+  return safe;
+}
+
+export async function setPassword(userId: number, newPassword: string): Promise<void> {
+  const hash = await hashPassword(newPassword);
+  await run(
+    "UPDATE lfc_demo_users SET password_hash = ?, must_change_password = false WHERE id = ?",
+    [hash, userId]
+  );
+}
+
 export async function initDb(): Promise<void> {
   console.log("Initializing database...");
 
@@ -130,7 +172,9 @@ export async function initDb(): Promise<void> {
       name TEXT NOT NULL,
       role TEXT NOT NULL,
       governorship_id INTEGER,
-      unit_id INTEGER
+      unit_id INTEGER,
+      password_hash TEXT,
+      must_change_password BOOLEAN NOT NULL DEFAULT true
     );
 
     CREATE TABLE IF NOT EXISTS lfc_demo_areas (
@@ -236,6 +280,12 @@ export async function initDb(): Promise<void> {
     );
   `);
 
+  // Safety migration for deployments created before password auth existed.
+  await exec(`
+    ALTER TABLE lfc_demo_users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+    ALTER TABLE lfc_demo_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT true;
+  `);
+
   // Seed standard data if not seeded already
   const userCount = await get<{ count: string | number }>("SELECT COUNT(*) as count FROM lfc_demo_users");
   if (userCount && Number(userCount.count) === 0) {
@@ -319,5 +369,16 @@ export async function initDb(): Promise<void> {
       SELECT setval(pg_get_serial_sequence('lfc_demo_governorships', 'id'), (SELECT MAX(id) FROM lfc_demo_governorships));
       SELECT setval(pg_get_serial_sequence('lfc_demo_units', 'id'), (SELECT MAX(id) FROM lfc_demo_units));
     `);
+  }
+
+  // Backfill a default password for any account that doesn't have one yet
+  // (freshly seeded users, or accounts from a deployment created before
+  // password auth existed). They're required to change it on first login.
+  const usersNeedingPassword = await all<{ id: number }>(
+    "SELECT id FROM lfc_demo_users WHERE password_hash IS NULL"
+  );
+  if (usersNeedingPassword.length > 0) {
+    const hash = await hashPassword(DEFAULT_PASSWORD);
+    await run("UPDATE lfc_demo_users SET password_hash = ? WHERE password_hash IS NULL", [hash]);
   }
 }

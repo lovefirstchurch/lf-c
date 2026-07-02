@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  initDb, run, get, all, addAuditLog, transaction, uploadToR2 
+import {
+  initDb, run, get, all, addAuditLog, transaction, uploadToR2,
+  findUserById, listUsers, verifyLogin, setPassword, hashPassword, DEFAULT_PASSWORD,
 } from '@lfc/db';
 
 let dbInitialized = false;
@@ -31,7 +32,7 @@ async function authenticateRequest(req: NextRequest, isUnauthenticatedRoute: boo
   }
 
   const userId = parseInt(userIdStr);
-  const user = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userId]);
+  const user = await findUserById(userId);
   if (!user) {
     return { 
       user: null, 
@@ -75,10 +76,7 @@ export async function GET(
     const segments = routeParams.route || [];
     const path = '/' + segments.join('/');
     
-    // Check if unauthenticated route
-    const isUnauthenticated = path === '/users';
-    
-    const { user, errorResponse } = await authenticateRequest(req, isUnauthenticated);
+    const { user, errorResponse } = await authenticateRequest(req, false);
     if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(req.url);
@@ -90,7 +88,7 @@ export async function GET(
 
     // GET /api/users
     if (path === '/users') {
-      const users = await all("SELECT * FROM lfc_demo_users");
+      const users = await listUsers();
       return NextResponse.json(users);
     }
 
@@ -404,7 +402,23 @@ export async function POST(
     const segments = routeParams.route || [];
     const path = '/' + segments.join('/');
 
-    const isUnauthenticated = path === '/arrivals/accept-invite';
+    const isUnauthenticated = path === '/arrivals/accept-invite' || path === '/login';
+
+    // /login runs before authenticateRequest would have anything to check,
+    // but it still needs ensureDb() to have run.
+    if (path === '/login') {
+      await ensureDb();
+      const body = await req.json().catch(() => ({}));
+      const { username, password } = body;
+      if (!username || !password) {
+        return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
+      }
+      const loggedInUser = await verifyLogin(username, password);
+      if (!loggedInUser) {
+        return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
+      }
+      return NextResponse.json(loggedInUser);
+    }
 
     const { user, errorResponse } = await authenticateRequest(req, isUnauthenticated);
     if (errorResponse) return errorResponse;
@@ -427,6 +441,17 @@ export async function POST(
       body = await req.json().catch(() => ({}));
     }
 
+    // POST /api/change-password
+    if (path === '/change-password') {
+      const { new_password } = body;
+      if (!new_password || new_password.length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 });
+      }
+      await setPassword(user.id, new_password);
+      const updatedUser = await findUserById(user.id);
+      return NextResponse.json(updatedUser);
+    }
+
     // POST /api/arrivals/accept-invite (unauthenticated: the invited Counter
     // has no account yet)
     if (path === '/arrivals/accept-invite') {
@@ -436,10 +461,11 @@ export async function POST(
         return NextResponse.json({ error: 'Invalid or already used invite token.' }, { status: 400 });
       }
 
+      const passwordHash = await hashPassword(DEFAULT_PASSWORD);
       const userRes = await run(`
-        INSERT INTO lfc_demo_users (username, name, role)
-        VALUES (?, ?, 'Counter')
-      `, [username, name]);
+        INSERT INTO lfc_demo_users (username, name, role, password_hash)
+        VALUES (?, ?, 'Counter', ?)
+      `, [username, name, passwordHash]);
 
       await run(`
         UPDATE lfc_demo_counter_invites
@@ -447,7 +473,7 @@ export async function POST(
         WHERE id = ?
       `, [userRes.id, token]);
 
-      const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userRes.id]);
+      const newUser = await findUserById(userRes.id!);
       await addAuditLog(userRes.id!, name, 'Counter', 'ACCEPT_INVITE', 'user', userRes.id!, null, newUser);
 
       return NextResponse.json({ success: true, user: newUser });
@@ -471,31 +497,15 @@ export async function POST(
         return NextResponse.json({ error: 'That username is already taken.' }, { status: 400 });
       }
 
-      const { role: actorRole, governorship_id: actorGovId } = user;
-      const isChiefAdmin = actorRole === 'Chief Admin';
-
-      if (role === 'Governor' || role === 'Governorship Admin') {
-        if (!isChiefAdmin) {
-          return NextResponse.json(
-            { error: 'Only Chief Admin can assign Governors or Governorship Admins.' },
-            { status: 403 }
-          );
-        }
-      } else if (unit_id) {
-        const targetUnit = await get("SELECT governorship_id FROM lfc_demo_units WHERE id = ?", [parseInt(unit_id)]);
-        const allowed =
-          isChiefAdmin ||
-          ((actorRole === 'Governor' || actorRole === 'Governorship Admin') &&
-            targetUnit &&
-            targetUnit.governorship_id === actorGovId);
-        if (!allowed) {
-          return NextResponse.json({ error: 'Unauthorized to assign leaders in this governorship.' }, { status: 403 });
-        }
+      // Leader role assignment is Chief Admin only.
+      if (user.role !== 'Chief Admin') {
+        return NextResponse.json({ error: 'Only Chief Admin can assign leader roles.' }, { status: 403 });
       }
 
+      const passwordHash = await hashPassword(DEFAULT_PASSWORD);
       const result = await run(
-        "INSERT INTO lfc_demo_users (username, name, role) VALUES (?, ?, ?)",
-        [username, name, role]
+        "INSERT INTO lfc_demo_users (username, name, role, password_hash) VALUES (?, ?, ?, ?)",
+        [username, name, role, passwordHash]
       );
       const newUserId = result.id!;
 
@@ -522,7 +532,7 @@ export async function POST(
         await run("UPDATE lfc_demo_units SET leader_id = ? WHERE id = ?", [newUserId, parseInt(unit_id)]);
       }
 
-      const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [newUserId]);
+      const newUser = await findUserById(newUserId);
       await addAuditLog(user.id, user.name, user.role, 'CREATE', 'leader', newUserId, null, newUser);
       return NextResponse.json(newUser, { status: 201 });
     }

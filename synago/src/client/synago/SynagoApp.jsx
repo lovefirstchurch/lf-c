@@ -85,7 +85,7 @@ function SynagoDashboard() {
   // dashboard for the logged-in user.
   useEffect(() => {
     const currentUserId = localStorage.getItem('lfc_user_id') || '1';
-    fetch('/api/users')
+    apiFetch('/api/users')
       .then((res) => res.json())
       .then((users) => {
         if (!Array.isArray(users)) return;
@@ -180,7 +180,7 @@ function SynagoDashboard() {
     const newDate = e.target.value;
     setDate(newDate);
     const userId = localStorage.getItem('lfc_user_id') || '1';
-    fetch(`/api/users`)
+    apiFetch('/api/users')
       .then((res) => res.json())
       .then((users) => {
         if (!Array.isArray(users)) return;

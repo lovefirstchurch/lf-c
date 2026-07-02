@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  initDb, run, get, all, addAuditLog, uploadToR2 
+import {
+  initDb, run, get, all, addAuditLog, uploadToR2,
+  findUserById, listUsers, verifyLogin, setPassword, hashPassword, DEFAULT_PASSWORD,
 } from '@lfc/db';
 
 let dbInitialized = false;
@@ -31,7 +32,7 @@ async function authenticateRequest(req: NextRequest, isUnauthenticatedRoute: boo
   }
 
   const userId = parseInt(userIdStr);
-  const user = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userId]);
+  const user = await findUserById(userId);
   if (!user) {
     return { 
       user: null, 
@@ -55,16 +56,14 @@ export async function GET(
     const segments = routeParams.route || [];
     const path = '/' + segments.join('/');
     
-    const isUnauthenticated = path === '/users';
-    
-    const { user, errorResponse } = await authenticateRequest(req, isUnauthenticated);
+    const { user, errorResponse } = await authenticateRequest(req, false);
     if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(req.url);
 
     // GET /api/users
     if (path === '/users') {
-      const users = await all("SELECT * FROM lfc_demo_users");
+      const users = await listUsers();
       return NextResponse.json(users);
     }
 
@@ -147,7 +146,21 @@ export async function POST(
     const segments = routeParams.route || [];
     const path = '/' + segments.join('/');
 
-    const isUnauthenticated = path === '/arrivals/accept-invite';
+    const isUnauthenticated = path === '/arrivals/accept-invite' || path === '/login';
+
+    if (path === '/login') {
+      await ensureDb();
+      const loginBody = await req.json().catch(() => ({}));
+      const { username, password } = loginBody;
+      if (!username || !password) {
+        return NextResponse.json({ error: 'Username and password are required.' }, { status: 400 });
+      }
+      const loggedInUser = await verifyLogin(username, password);
+      if (!loggedInUser) {
+        return NextResponse.json({ error: 'Invalid username or password.' }, { status: 401 });
+      }
+      return NextResponse.json(loggedInUser);
+    }
 
     const { user, errorResponse } = await authenticateRequest(req, isUnauthenticated);
     if (errorResponse) return errorResponse;
@@ -168,6 +181,17 @@ export async function POST(
       });
     } else {
       body = await req.json().catch(() => ({}));
+    }
+
+    // POST /api/change-password
+    if (path === '/change-password') {
+      const { new_password } = body;
+      if (!new_password || new_password.length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters.' }, { status: 400 });
+      }
+      await setPassword(user.id, new_password);
+      const updatedUser = await findUserById(user.id);
+      return NextResponse.json(updatedUser);
     }
 
     // POST /api/synago/arrivals/premob
@@ -268,18 +292,19 @@ export async function POST(
         return NextResponse.json({ error: 'Invalid or already used invite token.' }, { status: 400 });
       }
 
+      const passwordHash = await hashPassword(DEFAULT_PASSWORD);
       const userRes = await run(`
-        INSERT INTO lfc_demo_users (username, name, role)
-        VALUES (?, ?, 'Counter')
-      `, [username, name]);
+        INSERT INTO lfc_demo_users (username, name, role, password_hash)
+        VALUES (?, ?, 'Counter', ?)
+      `, [username, name, passwordHash]);
 
       await run(`
-        UPDATE lfc_demo_counter_invites 
+        UPDATE lfc_demo_counter_invites
         SET is_used = 1, used_by = ?
         WHERE id = ?
       `, [userRes.id, token]);
 
-      const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userRes.id]);
+      const newUser = await findUserById(userRes.id!);
       await addAuditLog(userRes.id!, name, 'Counter', 'ACCEPT_INVITE', 'user', userRes.id!, null, newUser);
 
       return NextResponse.json({ success: true, user: newUser });

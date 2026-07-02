@@ -1,50 +1,45 @@
 import { useEffect, useState } from 'react';
-import { setCurrentUserId } from './api.js';
+import { apiFetch, setCurrentUserId } from './api.js';
 
-// Ported from window.checkLoginOrRedirect in public/shared/components.js:
-// if no user is stored, the app UI is replaced by the login screen.
+// Gates the app behind a real username/password login, then behind a
+// forced password change if the account is still on its default password
+// (must_change_password), mirroring the production system's
+// default_password_must_change flow.
 export default function LoginGate({ appName, children }) {
   const [userId] = useState(() => localStorage.getItem('lfc_user_id'));
+  // checking | loggedOut | mustChangePassword | ready
+  const [status, setStatus] = useState(userId ? 'checking' : 'loggedOut');
+  const [me, setMe] = useState(null);
 
-  if (!userId) {
-    return <LoginScreen appName={appName} />;
+  useEffect(() => {
+    if (!userId) return;
+    apiFetch('/api/me')
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.error) {
+          setStatus('loggedOut');
+          return;
+        }
+        setMe(data);
+        setStatus(data.must_change_password ? 'mustChangePassword' : 'ready');
+      })
+      .catch(() => setStatus('loggedOut'));
+  }, [userId]);
+
+  if (status === 'loggedOut') return <LoginScreen appName={appName} />;
+  if (status === 'checking') return null;
+  if (status === 'mustChangePassword') {
+    return <ChangePasswordScreen appName={appName} me={me} />;
   }
   return children;
 }
 
-function LoginScreen({ appName }) {
-  const [users, setUsers] = useState(null);
-  const [username, setUsername] = useState('');
-  const [loadError, setLoadError] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/users')
-      .then(async (res) => {
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !Array.isArray(data)) {
-          // The API returns { error } on failure (e.g. the database is
-          // unreachable). Surface it instead of leaving `users` non-array,
-          // which used to crash the sign-in handler.
-          throw new Error((data && data.error) || `Server error (${res.status})`);
-        }
-        return data;
-      })
-      .then((data) => setUsers(data))
-      .catch((err) => {
-        console.error(err);
-        setUsers([]);
-        setLoadError(err.message || 'Could not reach the server.');
-      });
-  }, []);
-
+function AuthCard({ appName, title, subtitle, children }) {
   const logoColor =
     appName === 'Synago'
       ? 'linear-gradient(135deg, #ff7a00, #fd5d96)'
       : 'linear-gradient(135deg, #a855f7, #3acff8)';
-  const accentColor = appName === 'Synago' ? '#ff7a00' : '#a855f7';
 
-  // Synago's real app is a flat near-black UI with no blur/glass effect;
-  // Poimen keeps the shared glassmorphism look.
   const bgTint =
     appName === 'Synago'
       ? 'radial-gradient(at 0% 0%, rgba(255, 122, 0, 0.08) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(253, 93, 150, 0.05) 0px, transparent 50%)'
@@ -63,27 +58,6 @@ function LoginScreen({ appName }) {
           border: '1px solid rgba(255, 255, 255, 0.08)',
           borderRadius: 'var(--radius-lg)',
         };
-
-  function loginUser(user) {
-    setCurrentUserId(user.id);
-    window.location.reload();
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault();
-    if (loadError) {
-      alert(`Cannot sign in — ${loadError}`);
-      return;
-    }
-    const val = username.trim();
-    const list = Array.isArray(users) ? users : [];
-    const userFound = list.find((u) => u.username === val);
-    if (userFound) {
-      loginUser(userFound);
-    } else {
-      alert('Invalid username. Please try again.');
-    }
-  }
 
   return (
     <div
@@ -135,7 +109,7 @@ function LoginScreen({ appName }) {
             WebkitTextFillColor: 'transparent',
           }}
         >
-          {appName}
+          {title || appName}
         </h1>
         <p
           style={{
@@ -144,36 +118,194 @@ function LoginScreen({ appName }) {
             marginBottom: '2rem',
           }}
         >
-          LFC Church Management System
+          {subtitle || 'LFC Church Management System'}
         </p>
 
-        <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
-          <div className="form-group">
-            <label className="form-label">Username</label>
-            <input
-              type="text"
-              className="form-control"
-              placeholder="Enter username"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{ borderRadius: 'var(--radius-md)' }}
-            />
-          </div>
-          <button
-            type="submit"
-            className="btn btn-primary"
-            style={{
-              width: '100%',
-              padding: '0.75rem',
-              background: logoColor,
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            Sign In
-          </button>
-        </form>
+        {children}
       </div>
     </div>
+  );
+}
+
+function LoginScreen({ appName }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const logoColor =
+    appName === 'Synago'
+      ? 'linear-gradient(135deg, #ff7a00, #fd5d96)'
+      : 'linear-gradient(135deg, #a855f7, #3acff8)';
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data) {
+        setCurrentUserId(data.id);
+        window.location.reload();
+        return;
+      }
+      setError((data && data.error) || 'Invalid username or password.');
+    } catch (err) {
+      setError('Could not reach the server.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <AuthCard appName={appName}>
+      <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
+        <div className="form-group">
+          <label className="form-label">Username</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Enter username"
+            required
+            autoFocus
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            style={{ borderRadius: 'var(--radius-md)' }}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Password</label>
+          <input
+            type="password"
+            className="form-control"
+            placeholder="Enter password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            style={{ borderRadius: 'var(--radius-md)' }}
+          />
+        </div>
+        {error && (
+          <div style={{ color: 'var(--destructive)', fontSize: '0.8rem', marginBottom: '1rem' }}>
+            {error}
+          </div>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: logoColor,
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          {submitting ? 'Signing In...' : 'Sign In'}
+        </button>
+      </form>
+    </AuthCard>
+  );
+}
+
+function ChangePasswordScreen({ appName, me }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const logoColor =
+    appName === 'Synago'
+      ? 'linear-gradient(135deg, #ff7a00, #fd5d96)'
+      : 'linear-gradient(135deg, #a855f7, #3acff8)';
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await apiFetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ new_password: newPassword }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+      setError((data && data.error) || 'Failed to update password.');
+    } catch (err) {
+      setError('Could not reach the server.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <AuthCard
+      appName={appName}
+      title="Set a New Password"
+      subtitle={me ? `Welcome, ${me.name}. You're using a default password — set your own to continue.` : undefined}
+    >
+      <form onSubmit={handleSubmit} style={{ textAlign: 'left' }}>
+        <div className="form-group">
+          <label className="form-label">New Password</label>
+          <input
+            type="password"
+            className="form-control"
+            placeholder="At least 6 characters"
+            required
+            autoFocus
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            style={{ borderRadius: 'var(--radius-md)' }}
+          />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Confirm Password</label>
+          <input
+            type="password"
+            className="form-control"
+            placeholder="Re-enter password"
+            required
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            style={{ borderRadius: 'var(--radius-md)' }}
+          />
+        </div>
+        {error && (
+          <div style={{ color: 'var(--destructive)', fontSize: '0.8rem', marginBottom: '1rem' }}>
+            {error}
+          </div>
+        )}
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={submitting}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: logoColor,
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          {submitting ? 'Saving...' : 'Save Password'}
+        </button>
+      </form>
+    </AuthCard>
   );
 }
