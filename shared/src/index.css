@@ -628,3 +628,83 @@ h1, h2, h3, h4, h5, h6 {
   border-color: rgba(var(--primary-rgb), 0.5);
 }
 
+
+/* Mobile list-tile rows (Flutter ListTile-style: leading icon, title,
+   subtitle, trailing chevron/chip). Used for drilldown lists and any flat
+   list of records — members, services, etc. */
+.list-tile-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.list-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.list-tile-avatar {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: rgba(var(--primary-rgb), 0.15);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.list-tile-icon {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.list-tile-body {
+  flex: 1;
+  min-width: 0;
+}
+.list-tile-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-tile-subtitle {
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-tile-chip {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.3rem 0.55rem;
+  border-radius: 9999px;
+  max-width: 50%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.list-tile-trailing {
+  flex-shrink: 0;
+  color: var(--muted-foreground);
+  display: flex;
+}

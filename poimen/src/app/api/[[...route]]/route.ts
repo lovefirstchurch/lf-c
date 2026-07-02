@@ -453,6 +453,80 @@ export async function POST(
       return NextResponse.json({ success: true, user: newUser });
     }
 
+    // POST /api/leaders — create a brand-new person with a leadership role,
+    // optionally assigning them to a governorship or unit right away.
+    if (path === '/leaders') {
+      const { name, username, role, governorship_id, unit_id } = body;
+      const LEADER_ROLES = ['Governor', 'Governorship Admin', 'Area 1 Shepherd', 'Area 2 Schacenta Leader'];
+
+      if (!LEADER_ROLES.includes(role)) {
+        return NextResponse.json({ error: 'Invalid leader role.' }, { status: 400 });
+      }
+      if (!name || !username) {
+        return NextResponse.json({ error: 'Name and username are required.' }, { status: 400 });
+      }
+
+      const existing = await get("SELECT id FROM lfc_demo_users WHERE username = ?", [username]);
+      if (existing) {
+        return NextResponse.json({ error: 'That username is already taken.' }, { status: 400 });
+      }
+
+      const { role: actorRole, governorship_id: actorGovId } = user;
+      const isChiefAdmin = actorRole === 'Chief Admin';
+
+      if (role === 'Governor' || role === 'Governorship Admin') {
+        if (!isChiefAdmin) {
+          return NextResponse.json(
+            { error: 'Only Chief Admin can assign Governors or Governorship Admins.' },
+            { status: 403 }
+          );
+        }
+      } else if (unit_id) {
+        const targetUnit = await get("SELECT governorship_id FROM lfc_demo_units WHERE id = ?", [parseInt(unit_id)]);
+        const allowed =
+          isChiefAdmin ||
+          ((actorRole === 'Governor' || actorRole === 'Governorship Admin') &&
+            targetUnit &&
+            targetUnit.governorship_id === actorGovId);
+        if (!allowed) {
+          return NextResponse.json({ error: 'Unauthorized to assign leaders in this governorship.' }, { status: 403 });
+        }
+      }
+
+      const result = await run(
+        "INSERT INTO lfc_demo_users (username, name, role) VALUES (?, ?, ?)",
+        [username, name, role]
+      );
+      const newUserId = result.id!;
+
+      if (role === 'Governor' && governorship_id) {
+        const targetGov = await get("SELECT governor_id FROM lfc_demo_governorships WHERE id = ?", [parseInt(governorship_id)]);
+        if (targetGov && targetGov.governor_id) {
+          await run("UPDATE lfc_demo_users SET governorship_id = NULL WHERE id = ?", [targetGov.governor_id]);
+        }
+        await run("UPDATE lfc_demo_users SET governorship_id = ? WHERE id = ?", [parseInt(governorship_id), newUserId]);
+        await run("UPDATE lfc_demo_governorships SET governor_id = ? WHERE id = ?", [newUserId, parseInt(governorship_id)]);
+      } else if (role === 'Governorship Admin' && governorship_id) {
+        const targetGov = await get("SELECT admin_id FROM lfc_demo_governorships WHERE id = ?", [parseInt(governorship_id)]);
+        if (targetGov && targetGov.admin_id) {
+          await run("UPDATE lfc_demo_users SET governorship_id = NULL WHERE id = ?", [targetGov.admin_id]);
+        }
+        await run("UPDATE lfc_demo_users SET governorship_id = ? WHERE id = ?", [parseInt(governorship_id), newUserId]);
+        await run("UPDATE lfc_demo_governorships SET admin_id = ? WHERE id = ?", [newUserId, parseInt(governorship_id)]);
+      } else if (unit_id) {
+        const targetUnit = await get("SELECT leader_id FROM lfc_demo_units WHERE id = ?", [parseInt(unit_id)]);
+        if (targetUnit && targetUnit.leader_id) {
+          await run("UPDATE lfc_demo_users SET unit_id = NULL WHERE id = ?", [targetUnit.leader_id]);
+        }
+        await run("UPDATE lfc_demo_users SET unit_id = ? WHERE id = ?", [parseInt(unit_id), newUserId]);
+        await run("UPDATE lfc_demo_units SET leader_id = ? WHERE id = ?", [newUserId, parseInt(unit_id)]);
+      }
+
+      const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [newUserId]);
+      await addAuditLog(user.id, user.name, user.role, 'CREATE', 'leader', newUserId, null, newUser);
+      return NextResponse.json(newUser, { status: 201 });
+    }
+
     // POST /api/units
     if (path === '/units') {
       const { name, type, governorship_id, leader_id } = body;

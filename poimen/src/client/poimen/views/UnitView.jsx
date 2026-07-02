@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch, useMinWidth } from '@lfc/shared';
-import ViewShell from './ViewShell.jsx';
+import ViewShell, { DrilldownIcon, Icons } from './ViewShell.jsx';
 
 const colTitleStyle = {
   fontFamily: 'var(--font-display)',
@@ -17,6 +17,7 @@ export default function UnitView({ routeData }) {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showAddMidweek, setShowAddMidweek] = useState(false);
   const [quickLeader, setQuickLeader] = useState('');
+  const [showNewLeader, setShowNewLeader] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +118,28 @@ export default function UnitView({ routeData }) {
     }
   }
 
+  async function handleNewLeaderSave(e) {
+    e.preventDefault();
+    const res = await apiFetch('/api/leaders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: e.target.name.value,
+        username: e.target.username.value,
+        role: data.unit.type === 'fellowship' ? 'Area 1 Shepherd' : 'Area 2 Schacenta Leader',
+        unit_id: routeData.id,
+      }),
+    });
+
+    if (res.ok) {
+      setShowNewLeader(false);
+      refresh();
+    } else {
+      const resData = await res.json();
+      alert(resData.error || 'Failed to create leader');
+    }
+  }
+
   async function handleAddMember(e) {
     e.preventDefault();
     const res = await apiFetch('/api/members', {
@@ -191,7 +214,7 @@ export default function UnitView({ routeData }) {
   const canAddMember = data && (data.isLeader || data.isScopeAdmin);
 
   return (
-    <ViewShell title="Fellowship / Schacenta Details">
+    <ViewShell title="Unit Details">
       {/* Details block */}
       <div className="glass" style={{ padding: '1.25rem', marginBottom: '2.5rem' }}>
         {!data && <div style={{ color: 'var(--muted-foreground)' }}>Loading unit details...</div>}
@@ -240,30 +263,71 @@ export default function UnitView({ routeData }) {
                     marginBottom: '0.5rem',
                   }}
                 >
-                  QUICK ADMIN: CHANGE LEADER
+                  CHANGE LEADER
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <select
-                    className="form-control"
-                    style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                    value={quickLeader}
-                    onChange={(e) => setQuickLeader(e.target.value)}
-                  >
-                    <option value="">-- Unassigned --</option>
-                    {data.candidateLeaders.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="btn btn-secondary btn-sm"
-                    style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-                    onClick={handleQuickLeaderSave}
-                  >
-                    Save
-                  </button>
-                </div>
+                {!showNewLeader ? (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select
+                      className="form-control"
+                      style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                      value={quickLeader}
+                      onChange={(e) => setQuickLeader(e.target.value)}
+                    >
+                      <option value="">Unassigned</option>
+                      {data.candidateLeaders.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                      onClick={handleQuickLeaderSave}
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                      onClick={() => setShowNewLeader(true)}
+                    >
+                      + New Leader
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleNewLeaderSave}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        name="name"
+                        className="form-control"
+                        style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        placeholder="Full Name"
+                        required
+                      />
+                      <input
+                        type="text"
+                        name="username"
+                        className="form-control"
+                        style={{ width: 'auto', padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        placeholder="Username"
+                        required
+                      />
+                      <button type="submit" className="btn btn-primary btn-sm" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+                        onClick={() => setShowNewLeader(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             )}
           </>
@@ -282,7 +346,7 @@ export default function UnitView({ routeData }) {
               marginBottom: '1rem',
             }}
           >
-            <h3 style={colTitleStyle}>Unit Members Roster</h3>
+            <h3 style={colTitleStyle}>Members</h3>
             {canAddMember && !showAddMember && (
               <button className="btn btn-secondary btn-sm" onClick={() => setShowAddMember(true)}>
                 + Add Member
@@ -294,7 +358,7 @@ export default function UnitView({ routeData }) {
           {canAddMember && showAddMember && (
             <div className="glass" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
               <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>
-                Add New Member
+                New Member
               </h4>
               <form onSubmit={handleAddMember}>
                 <div className="form-group">
@@ -322,33 +386,25 @@ export default function UnitView({ routeData }) {
             </div>
           )}
 
-          <div className="glass" style={{ padding: '1.25rem' }}>
-            {!data && 'Loading members roster...'}
+          <div className="list-tile-group">
+            {!data && <div style={{ color: 'var(--muted-foreground)' }}>Loading...</div>}
             {data && data.members.length === 0 && (
               <div style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem', textAlign: 'center' }}>
-                No active members.
+                No members yet.
               </div>
             )}
             {data &&
               data.members.map((m) => (
-                <div
-                  key={m.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.5rem 0',
-                    borderBottom: '1px solid rgba(255,255,255,0.03)',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{m.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{m.phone}</div>
+                <div key={m.id} className="list-tile">
+                  <div className="list-tile-avatar">{m.name.charAt(0)}</div>
+                  <div className="list-tile-body">
+                    <div className="list-tile-title">{m.name}</div>
+                    <div className="list-tile-subtitle">{m.phone}</div>
                   </div>
                   {data.isScopeAdmin && (
                     <button
                       className="btn btn-secondary btn-sm"
-                      style={{ padding: '0.2rem 0.4rem', fontSize: '0.75rem' }}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
                       onClick={() => reassignMember(m.id)}
                     >
                       Move
@@ -370,7 +426,7 @@ export default function UnitView({ routeData }) {
               marginBottom: '1rem',
             }}
           >
-            <h3 style={colTitleStyle}>Midweek Service Submissions</h3>
+            <h3 style={colTitleStyle}>Services</h3>
             {/* Only the unit leader can submit new midweek reports */}
             {data?.isLeader && !showAddMidweek && (
               <button className="btn btn-secondary btn-sm" onClick={() => setShowAddMidweek(true)}>
@@ -383,7 +439,7 @@ export default function UnitView({ routeData }) {
           {data?.isLeader && showAddMidweek && (
             <div className="glass" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
               <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>
-                Submit Midweek Service Report
+                New Service Report
               </h4>
               <form onSubmit={handleAddMidweek}>
                 <div className="form-group">
@@ -497,16 +553,16 @@ export default function UnitView({ routeData }) {
               marginBottom: '1rem',
             }}
           >
-            Saturday Named Attendance
+            Attendance
           </h3>
           <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-            Select an arrivals date to record which specific members were present.
+            Pick a date to mark who attended.
           </p>
           <div className="glass" style={{ padding: '1.25rem' }}>
-            {!data && 'Loading Saturday records...'}
+            {!data && 'Loading...'}
             {data && data.unitArrivals.length === 0 && (
               <div style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem', textAlign: 'center' }}>
-                No arrivals reported yet (Units log arrivals in Synago).
+                No arrivals yet.
               </div>
             )}
             {data &&
@@ -521,15 +577,18 @@ export default function UnitView({ routeData }) {
                     key={a.arrival_id}
                     href={`/unit/${routeData.id}/saturday/${dateVal}`}
                     className="drilldown-item glass glass-hover"
-                    style={{ padding: '0.75rem 1rem', marginBottom: '0.5rem' }}
+                    style={{ marginBottom: '0.5rem' }}
                   >
-                    <div>
+                    <DrilldownIcon>{Icons.calendar}</DrilldownIcon>
+                    <div className="drilldown-item-body">
                       <div className="drilldown-title">{dateVal}</div>
                       <div className="drilldown-subtitle">
-                        Official headcount: <strong>{a.approved_headcount || 'Pending'}</strong>
+                        Headcount: {a.approved_headcount || 'Pending'}
                       </div>
                     </div>
-                    <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>TICK &rarr;</span>
+                    <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '0.8rem' }}>
+                      TICK
+                    </span>
                   </a>
                 );
               })}

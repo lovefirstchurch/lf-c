@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@lfc/shared';
-import ViewShell from './ViewShell.jsx';
+import ViewShell, { DrilldownIcon, Icons } from './ViewShell.jsx';
 
 // View: MIDWEEK SERVICE REPORTS
 // Read-only roll-up of the midweek service submissions the current user is
@@ -37,7 +37,7 @@ export default function ServicesView() {
   );
 
   return (
-    <ViewShell title="Midweek Services">
+    <ViewShell title="Services">
       {/* Summary tiles */}
       <div
         style={{
@@ -48,65 +48,34 @@ export default function ServicesView() {
         }}
       >
         <StatTile label="Reports" value={list ? list.length : '—'} />
-        <StatTile label="Total Attendance" value={list ? totals.attendance : '—'} />
-        <StatTile label="Total Tithers" value={list ? totals.tithers : '—'} />
-        <StatTile
-          label="Total Offering"
-          value={list ? `GHS ${totals.offering.toLocaleString()}` : '—'}
-        />
+        <StatTile label="Attendance" value={list ? totals.attendance : '—'} />
+        <StatTile label="Tithers" value={list ? totals.tithers : '—'} />
+        <StatTile label="Offering" value={list ? `GHS ${totals.offering.toLocaleString()}` : '—'} />
       </div>
 
-      <div className="glass table-container">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Unit</th>
-              <th>Attendance</th>
-              <th>Tithers</th>
-              <th>Offering</th>
-              <th>Submitted By</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list === null && (
-              <tr>
-                <td colSpan="6" style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>
-                  Loading service reports...
-                </td>
-              </tr>
-            )}
-            {list && list.length === 0 && (
-              <tr>
-                <td colSpan="6" style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>
-                  No midweek service reports submitted yet.
-                </td>
-              </tr>
-            )}
-            {list &&
-              list.map((s) => (
-                <tr key={s.id}>
-                  <td>
-                    <strong>{s.service_date}</strong>
-                  </td>
-                  <td>
-                    {s.unit_name}{' '}
-                    <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
-                      ({s.unit_type === 'fellowship' ? 'Area 1' : 'Area 2'})
-                    </span>
-                  </td>
-                  <td>{s.attendance_count}</td>
-                  <td>{s.tithers_count}</td>
-                  <td>
-                    {s.offering_currency || 'GHS'} {Number(s.offering_amount).toLocaleString()}
-                  </td>
-                  <td style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
-                    {s.submitter_name}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <div className="list-tile-group">
+        {list === null && <div style={{ color: 'var(--muted-foreground)' }}>Loading...</div>}
+        {list && list.length === 0 && (
+          <div style={{ color: 'var(--muted-foreground)', textAlign: 'center', padding: '2rem' }}>
+            No reports yet.
+          </div>
+        )}
+        {list &&
+          list.map((s) => (
+            <div className="list-tile" key={s.id}>
+              <DrilldownIcon>{Icons.calendar}</DrilldownIcon>
+              <div className="list-tile-body">
+                <div className="list-tile-title">
+                  {s.unit_name} &middot; {s.service_date}
+                </div>
+                <div className="list-tile-subtitle">
+                  {s.attendance_count} present &middot; {s.tithers_count} tithers &middot;{' '}
+                  {s.offering_currency || 'GHS'} {Number(s.offering_amount).toLocaleString()}
+                </div>
+              </div>
+              <span className="list-tile-chip">{s.submitter_name}</span>
+            </div>
+          ))}
       </div>
     </ViewShell>
   );

@@ -59,20 +59,20 @@ export default function UnitSaturdayView({ routeData }) {
   }
 
   return (
-    <ViewShell title="Saturday Named Attendance">
+    <ViewShell title="Attendance">
       <div className="glass" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
         {arrival === undefined && (
           <div style={{ color: 'var(--muted-foreground)' }}>Loading checklist...</div>
         )}
         {arrival === null && (
           <div style={{ color: 'var(--destructive)' }}>
-            No Saturday arrivals record found for this date. Run arrivals ritual in Synago first.
+            No arrival record for this date yet.
           </div>
         )}
         {arrival && (
           <>
             <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
-              ARRIVALS RITUAL INFO
+              ARRIVAL INFO
             </div>
             <h3 style={{ fontSize: '1.25rem', color: '#fff' }}>
               {arrival.unit_name} &bull; {routeData.date}
@@ -95,7 +95,7 @@ export default function UnitSaturdayView({ routeData }) {
               <div>
                 <span style={{ color: 'var(--muted-foreground)' }}>Roster Status:</span>
                 <strong style={{ display: 'block', color: '#ff7a00' }}>
-                  Best-Effort Named Attendance
+                  Best Effort
                 </strong>
               </div>
             </div>
@@ -109,7 +109,7 @@ export default function UnitSaturdayView({ routeData }) {
             {ticks === null && 'Loading members list...'}
             {ticks && ticks.length === 0 && (
               <div style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>
-                No active members found in roster. Add members to unit first.
+                No members yet.
               </div>
             )}
             {ticks &&
@@ -133,7 +133,7 @@ export default function UnitSaturdayView({ routeData }) {
               style={{ width: '100%', marginTop: '1.5rem' }}
               onClick={handleSave}
             >
-              Save Attendance Ticks
+              Save
             </button>
           )}
         </div>
