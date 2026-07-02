@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { LoginGate, UserSwitcher, SignOutButton, Sidebar, MenuToggleButton, setCurrentUserId } from '@lfc/shared';
+import { LoginGate, SignOutButton, Sidebar, MenuToggleButton, setCurrentUserId } from '@lfc/shared';
 import RootView from './views/RootView.jsx';
 import AreaView from './views/AreaView.jsx';
 import GovernorshipView from './views/GovernorshipView.jsx';
@@ -144,15 +144,6 @@ function PoimenConsole() {
         }
       });
   }, []);
-
-  function handleUserChanged(user) {
-    setHeaderUserLabel(`${user.name} (${user.role})`);
-    setSidebarUser(user);
-    setCurrentUserId(user.id);
-    navigate(ROOT_PATH, { replace: true, state: { depth: 0 } });
-    setPendingDrill(null);
-    setStackKey((k) => k + 1);
-  }
 
   function navigateFromSidebar(path) {
     setSidebarOpen(false);

@@ -271,7 +271,7 @@ export async function GET(
     }
 
     // GET /api/arrivals/:id/named-attendance
-    if (segments.length === 4 && segments[0] === 'arrivals' && segments[2] === 'named-attendance') {
+    if (segments.length === 3 && segments[0] === 'arrivals' && segments[2] === 'named-attendance') {
       const arrivalId = parseInt(segments[1]);
       const arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [arrivalId]);
       if (!arrival) {
@@ -404,7 +404,9 @@ export async function POST(
     const segments = routeParams.route || [];
     const path = '/' + segments.join('/');
 
-    const { user, errorResponse } = await authenticateRequest(req, false);
+    const isUnauthenticated = path === '/arrivals/accept-invite';
+
+    const { user, errorResponse } = await authenticateRequest(req, isUnauthenticated);
     if (errorResponse) return errorResponse;
 
     const contentType = req.headers.get('content-type') || '';
@@ -422,7 +424,33 @@ export async function POST(
         }
       });
     } else {
-      body = await req.json();
+      body = await req.json().catch(() => ({}));
+    }
+
+    // POST /api/arrivals/accept-invite (unauthenticated: the invited Counter
+    // has no account yet)
+    if (path === '/arrivals/accept-invite') {
+      const { token, name, username } = body;
+      const invite = await get("SELECT * FROM lfc_demo_counter_invites WHERE id = ? AND is_used = 0", [token]);
+      if (!invite) {
+        return NextResponse.json({ error: 'Invalid or already used invite token.' }, { status: 400 });
+      }
+
+      const userRes = await run(`
+        INSERT INTO lfc_demo_users (username, name, role)
+        VALUES (?, ?, 'Counter')
+      `, [username, name]);
+
+      await run(`
+        UPDATE lfc_demo_counter_invites
+        SET is_used = 1, used_by = ?
+        WHERE id = ?
+      `, [userRes.id, token]);
+
+      const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userRes.id]);
+      await addAuditLog(userRes.id!, name, 'Counter', 'ACCEPT_INVITE', 'user', userRes.id!, null, newUser);
+
+      return NextResponse.json({ success: true, user: newUser });
     }
 
     // POST /api/units
@@ -497,13 +525,13 @@ export async function POST(
     }
 
     // POST /api/arrivals/approve/:unit_id
-    if (segments.length === 4 && segments[0] === 'arrivals' && segments[2] === 'approve') {
+    if (segments.length === 3 && segments[0] === 'arrivals' && segments[1] === 'approve') {
       const { role } = user;
       if (role !== 'Chief Admin' && role !== 'Arrivals Admin' && role !== 'Counter') {
         return NextResponse.json({ error: 'Only Arrivals Admins or Counters can approve headcounts.' }, { status: 403 });
       }
 
-      const targetUnitId = parseInt(segments[3]);
+      const targetUnitId = parseInt(segments[2]);
       const { headcount, date } = body;
       const dateVal = date || new Date().toISOString().split('T')[0];
 
@@ -546,7 +574,7 @@ export async function POST(
     }
 
     // POST /api/arrivals/:id/named-attendance
-    if (segments.length === 4 && segments[0] === 'arrivals' && segments[2] === 'named-attendance') {
+    if (segments.length === 3 && segments[0] === 'arrivals' && segments[2] === 'named-attendance') {
       const arrivalId = parseInt(segments[1]);
       const arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [arrivalId]);
       if (!arrival) {
@@ -621,7 +649,7 @@ export async function PUT(
         }
       });
     } else {
-      body = await req.json();
+      body = await req.json().catch(() => ({}));
     }
 
     // PUT /api/units/:id
