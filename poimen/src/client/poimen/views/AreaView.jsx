@@ -3,15 +3,15 @@ import { apiFetch } from '@lfc/shared';
 import ViewShell, { DrilldownArrow, DrilldownIcon, Icons } from './ViewShell.jsx';
 
 // View: AREA (Governorships List)
-export default function AreaView({ routeData }) {
-  const areaName = routeData.id === 1 ? 'Area 1' : 'Area 2';
+export default function AreaView({ areaId }) {
+  const areaName = areaId === 1 ? 'Area 1' : 'Area 2';
   const [govs, setGovs] = useState(null);
 
   useEffect(() => {
-    apiFetch(`/api/areas/${routeData.id}/governorships`)
+    apiFetch(`/api/areas/${areaId}/governorships`)
       .then((res) => res.json())
       .then(setGovs);
-  }, [routeData.id]);
+  }, [areaId]);
 
   return (
     <ViewShell title={`${areaName} Governorships`}>

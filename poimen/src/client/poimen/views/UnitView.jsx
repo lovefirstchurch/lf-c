@@ -9,7 +9,7 @@ const colTitleStyle = {
 };
 
 // View: UNIT DETAIL (Midweek forms, member lists, and Saturday history)
-export default function UnitView({ routeData }) {
+export default function UnitView({ unitId }) {
   const wide = useMinWidth(900);
   const [data, setData] = useState(null);
   const [reload, setReload] = useState(0);
@@ -24,7 +24,7 @@ export default function UnitView({ routeData }) {
     (async () => {
       const [hRes, mRes, meRes] = await Promise.all([
         apiFetch('/api/hierarchy'),
-        apiFetch(`/api/units/${routeData.id}/members`),
+        apiFetch(`/api/units/${unitId}/members`),
         apiFetch('/api/me'),
       ]);
       const hierarchy = await hRes.json();
@@ -36,7 +36,7 @@ export default function UnitView({ routeData }) {
       let gov = null;
       for (const area of hierarchy) {
         for (const g of area.governorships) {
-          const u = g.units.find((item) => item.id === routeData.id);
+          const u = g.units.find((item) => item.id === unitId);
           if (u) {
             unit = u;
             gov = g;
@@ -51,7 +51,7 @@ export default function UnitView({ routeData }) {
         ((me.role === 'Governor' || me.role === 'Governorship Admin') &&
           gov &&
           me.governorship_id === gov.id);
-      const isLeader = me.unit_id === routeData.id;
+      const isLeader = me.unit_id === unitId;
 
       // Candidate leaders for the quick leader-assignment edit
       let candidateLeaders = [];
@@ -68,12 +68,12 @@ export default function UnitView({ routeData }) {
       // Midweek reports for this unit
       const mwRes = await apiFetch(`/api/midweek/submissions`);
       const mwSubmissions = await mwRes.json();
-      const unitSubmissions = mwSubmissions.filter((s) => s.unit_id === routeData.id);
+      const unitSubmissions = mwSubmissions.filter((s) => s.unit_id === unitId);
 
       // Saturday arrivals records for this unit
       const arrivalsRes = await apiFetch(`/api/arrivals/submissions`);
       const arrivals = await arrivalsRes.json();
-      const unitArrivals = arrivals.filter((a) => a.unit_id === routeData.id && a.arrival_id);
+      const unitArrivals = arrivals.filter((a) => a.unit_id === unitId && a.arrival_id);
 
       if (!cancelled) {
         setData({
@@ -94,7 +94,7 @@ export default function UnitView({ routeData }) {
     return () => {
       cancelled = true;
     };
-  }, [routeData.id, reload]);
+  }, [unitId, reload]);
 
   function refresh() {
     setShowAddMember(false);
@@ -103,7 +103,7 @@ export default function UnitView({ routeData }) {
   }
 
   async function handleQuickLeaderSave() {
-    const res = await apiFetch(`/api/units/${routeData.id}`, {
+    const res = await apiFetch(`/api/units/${unitId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -128,7 +128,7 @@ export default function UnitView({ routeData }) {
         name: e.target.name.value,
         username: e.target.username.value,
         role: data.unit.type === 'fellowship' ? 'Area 1 Shepherd' : 'Area 2 Schacenta Leader',
-        unit_id: routeData.id,
+        unit_id: unitId,
       }),
     });
 
@@ -150,7 +150,7 @@ export default function UnitView({ routeData }) {
         name: e.target.name.value,
         phone: e.target.phone.value,
         email: e.target.email.value,
-        unit_id: routeData.id,
+        unit_id: unitId,
       }),
     });
 
@@ -170,7 +170,7 @@ export default function UnitView({ routeData }) {
     hierarchy.forEach((area) => {
       area.governorships.forEach((g) => {
         g.units.forEach((u) => {
-          if (u.id !== routeData.id) {
+          if (u.id !== unitId) {
             promptLines += `ID ${u.id}: ${u.name} (${u.type})\n`;
           }
         });
@@ -582,7 +582,7 @@ export default function UnitView({ routeData }) {
                 return (
                   <a
                     key={a.arrival_id}
-                    href={`/unit/${routeData.id}/saturday/${dateVal}`}
+                    href={`/unit/${unitId}/saturday/${dateVal}`}
                     className="drilldown-item glass glass-hover"
                     style={{ marginBottom: '0.5rem' }}
                   >

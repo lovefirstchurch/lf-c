@@ -3,17 +3,17 @@ import { apiFetch } from '@lfc/shared';
 import ViewShell from './ViewShell.jsx';
 
 // View: SATURDAY NAMED CHECKLIST
-export default function UnitSaturdayView({ routeData }) {
+export default function UnitSaturdayView({ unitId, date }) {
   const [arrival, setArrival] = useState(undefined); // undefined = loading, null = not found
   const [ticks, setTicks] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const aRes = await apiFetch(`/api/arrivals/submissions?date=${routeData.date}`);
+      const aRes = await apiFetch(`/api/arrivals/submissions?date=${date}`);
       const submissions = await aRes.json();
 
-      const found = submissions.find((s) => s.unit_id === routeData.id && s.arrival_id);
+      const found = submissions.find((s) => s.unit_id === unitId && s.arrival_id);
       if (cancelled) return;
 
       if (!found) {
@@ -32,7 +32,7 @@ export default function UnitSaturdayView({ routeData }) {
     return () => {
       cancelled = true;
     };
-  }, [routeData.id, routeData.date]);
+  }, [unitId, date]);
 
   function toggleTick(memberId, checked) {
     setTicks((rows) => rows.map((t) => (t.member_id === memberId ? { ...t, present: checked } : t)));
@@ -75,7 +75,7 @@ export default function UnitSaturdayView({ routeData }) {
               ARRIVAL INFO
             </div>
             <h3 style={{ fontSize: '1.25rem', color: '#fff' }}>
-              {arrival.unit_name} &bull; {routeData.date}
+              {arrival.unit_name} &bull; {date}
             </h3>
             <div
               style={{

@@ -3,7 +3,7 @@ import { apiFetch } from '@lfc/shared';
 import ViewShell, { DrilldownArrow, DrilldownIcon, Icons } from './ViewShell.jsx';
 
 // View: GOVERNORSHIP (Units List)
-export default function GovernorshipView({ routeData }) {
+export default function GovernorshipView({ govId }) {
   const [data, setData] = useState(null);
   const [reload, setReload] = useState(0);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -16,7 +16,7 @@ export default function GovernorshipView({ routeData }) {
     (async () => {
       const [hRes, uRes, meRes] = await Promise.all([
         apiFetch(`/api/hierarchy`), // to find governor name
-        apiFetch(`/api/governorships/${routeData.id}/units`),
+        apiFetch(`/api/governorships/${govId}/units`),
         apiFetch('/api/me'),
       ]);
       const hierarchy = await hRes.json();
@@ -26,7 +26,7 @@ export default function GovernorshipView({ routeData }) {
       // Find governorship details
       let govDetails = null;
       for (const area of hierarchy) {
-        const g = area.governorships.find((gov) => gov.id === routeData.id);
+        const g = area.governorships.find((gov) => gov.id === govId);
         if (g) {
           govDetails = g;
           break;
@@ -37,7 +37,7 @@ export default function GovernorshipView({ routeData }) {
       const canManage =
         me.role === 'Chief Admin' ||
         ((me.role === 'Governor' || me.role === 'Governorship Admin') &&
-          me.governorship_id === routeData.id);
+          me.governorship_id === govId);
       const isChiefAdmin = me.role === 'Chief Admin';
 
       let candidateLeaders = [];
@@ -54,7 +54,7 @@ export default function GovernorshipView({ routeData }) {
     return () => {
       cancelled = true;
     };
-  }, [routeData.id, reload]);
+  }, [govId, reload]);
 
   async function handleCreateUnit(e) {
     e.preventDefault();
@@ -66,7 +66,7 @@ export default function GovernorshipView({ routeData }) {
       body: JSON.stringify({
         name: newUnitName,
         type,
-        governorship_id: routeData.id,
+        governorship_id: govId,
         leader_id: newUnitLeader ? parseInt(newUnitLeader) : null,
       }),
     });
@@ -92,7 +92,7 @@ export default function GovernorshipView({ routeData }) {
         name: e.target.name.value,
         username: e.target.username.value,
         role,
-        governorship_id: routeData.id,
+        governorship_id: govId,
       }),
     });
 
