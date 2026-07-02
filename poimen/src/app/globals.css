@@ -2,6 +2,5 @@
 @import "tailwindcss";
 @import "../../../shared/src/index.css";
 @import "../client/poimen/poimen.css";
-@import "../client/landing/landing.css";
 
 /* Poimen specific global overrides */

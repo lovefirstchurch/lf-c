@@ -13,9 +13,9 @@ import ShepherdingView from './views/ShepherdingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
 
 
-// The vanilla app used "/" as the root view's URL; the React port uses
-// /poimen so the landing page route at "/" stays reachable. All drill-down
-// paths (/area/1, /unit/3, /directory, ...) are unchanged.
+// Poimen is a standalone app: its own domain root ("/") and "/poimen" both
+// resolve to the hierarchy explorer root view. All drill-down paths
+// (/area/1, /unit/3, /directory, ...) are unchanged.
 export const ROOT_PATH = '/poimen';
 
 // --- ROUTING / PATH RESOLUTION (ported from public/poimen/app.js) ---
@@ -212,9 +212,6 @@ function PoimenConsole() {
           <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', display: 'none' }}>
             {headerUserLabel}
           </span>
-          <a href="/synago" className="btn btn-secondary btn-sm">
-            Switch to Synago (App 1)
-          </a>
           <SignOutButton />
         </div>
       </div>

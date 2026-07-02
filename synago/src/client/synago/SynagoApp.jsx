@@ -5,12 +5,13 @@ import { apiFetch, LoginGate, SignOutButton, Sidebar, MenuToggleButton, clearCur
 const ADMIN_ROLES = ['Chief Admin', 'Resident Pastor', 'Resident Mother', 'Governorship Admin'];
 
 const NOUNIT_TEXT =
-  'You hold a leadership role but have not been assigned to run a Fellowship or Schacenta yet. Please sign in as a leader with a unit, or go to Poimen to configure assignments.';
+  'You hold a leadership role but have not been assigned to run a Fellowship or Schacenta yet. Please sign in as a leader with a unit.';
 const ADMIN_TEXT =
   'You are logged in with an administrative profile. Synago is the leader-facing app specifically for Saturdays, where individual unit shepherds upload premobilisation photos and record vehicles.';
 
 // Drawer sections. Each renders one focused screen at a time instead of the
-// old single packed page.
+// old single packed page. Arrivals bundles the Premobilisation, Bussing, and
+// Verification steps together as one ritual, rather than as separate tabs.
 const NAV = [
   {
     key: 'dashboard',
@@ -25,34 +26,12 @@ const NAV = [
     ),
   },
   {
-    key: 'premob',
-    label: 'Premobilisation',
+    key: 'arrivals',
+    label: 'Arrivals',
     icon: (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-        <circle cx="12" cy="13" r="4"></circle>
-      </svg>
-    ),
-  },
-  {
-    key: 'bussing',
-    label: 'Bussing',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 17h16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z"></path>
-        <line x1="4" y1="11" x2="20" y2="11"></line>
-        <circle cx="7.5" cy="17.5" r="1.5"></circle>
-        <circle cx="16.5" cy="17.5" r="1.5"></circle>
-      </svg>
-    ),
-  },
-  {
-    key: 'verification',
-    label: 'Verification',
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path>
+        <line x1="4" y1="22" x2="4" y2="15"></line>
       </svg>
     ),
   },
@@ -381,9 +360,6 @@ function SynagoDashboard() {
             </div>
           </div>
           <div>
-            <a href="/poimen" className="btn btn-secondary btn-sm">
-              Switch to Poimen (App 2)
-            </a>
             <SignOutButton />
           </div>
         </div>
@@ -426,9 +402,6 @@ function SynagoDashboard() {
               {mode === 'nounit' ? NOUNIT_TEXT : ADMIN_TEXT}
             </p>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <a href="/poimen" className="btn btn-synago">
-                Go to Poimen Dashboard
-              </a>
               <button
                 className="btn btn-secondary"
                 onClick={() => {
@@ -480,244 +453,236 @@ function SynagoDashboard() {
                 <div className="glass dashboard-panel">
                   <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Saturday Arrivals Ritual</h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                    Complete each step from the menu. Premobilisation before the cutoff
-                    (<strong>{cutoffTime}</strong>){isSchacenta ? ', then log your bussing vehicles' : ''}, and a
-                    Counter records the official headcount.
+                    Complete premobilisation before the cutoff (<strong>{cutoffTime}</strong>)
+                    {isSchacenta ? ', log your bussing vehicles' : ''}, and a Counter will record the official
+                    headcount.
                   </p>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <button className="btn btn-synago btn-sm" onClick={() => navTo('premob')}>
-                      Go to Premobilisation
-                    </button>
-                    {isSchacenta && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => navTo('bussing')}>
-                        Log Bussing
-                      </button>
-                    )}
-                    <button className="btn btn-secondary btn-sm" onClick={() => navTo('verification')}>
-                      View Verification
-                    </button>
-                  </div>
+                  <button className="btn btn-synago btn-sm" onClick={() => navTo('arrivals')}>
+                    Go to Arrivals Ritual
+                  </button>
                 </div>
               </>
             )}
 
-            {/* PREMOBILISATION */}
-            {activeNav === 'premob' && (
-              <div className="glass dashboard-panel">
-                <div className="ritual-step-title">
-                  Premobilisation Photo
-                  <span className={premobBadge.className} style={{ marginLeft: 'auto' }}>
-                    {premobBadge.text}
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                  Upload one photo of your unit gathering before the cutoff time (<strong>{cutoffTime}</strong>).
-                </p>
-
-                {!premobSubmitted ? (
-                  <form onSubmit={handlePremobSubmit}>
-                    <div className="form-group">
-                      <input
-                        type="file"
-                        name="picture"
-                        ref={premobFileRef}
-                        accept="image/*"
-                        className="form-control"
-                        required
-                      />
-                    </div>
-                    <button type="submit" className="btn btn-synago" style={{ width: '100%' }}>
-                      Upload Premobilisation Photo
-                    </button>
-                  </form>
-                ) : (
-                  <div>
-                    <div style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: 'var(--muted-foreground)' }}>Submitted At:</span>
-                      <span style={{ fontWeight: 600 }}>{premobTime}</span>
-                    </div>
-                    <img src={data.arrival.premob_photo_path} className="photo-preview" alt="Premobilisation" />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* BUSSING / VEHICLES */}
-            {activeNav === 'bussing' && (
-              <div className="glass dashboard-panel">
-                <div className="ritual-step-title">
-                  On-the-way Bussing
-                  {isSchacenta && arrivalsData && (
-                    <span className="badge badge-info" style={{ marginLeft: 'auto' }}>
-                      {vehicles.length} Vehicles
+            {/* ARRIVALS: Premobilisation, Bussing, and Verification as one ritual */}
+            {activeNav === 'arrivals' && (
+              <>
+                {/* Step 1: Premobilisation */}
+                <div className="glass dashboard-panel ritual-step active">
+                  <div className="ritual-step-num">1</div>
+                  <div className="ritual-step-title">
+                    Premobilisation Photo
+                    <span className={premobBadge.className} style={{ marginLeft: 'auto' }}>
+                      {premobBadge.text}
                     </span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
+                    Upload one photo of your unit gathering before the cutoff time (<strong>{cutoffTime}</strong>).
+                  </p>
+
+                  {!premobSubmitted ? (
+                    <form onSubmit={handlePremobSubmit}>
+                      <div className="form-group">
+                        <input
+                          type="file"
+                          name="picture"
+                          ref={premobFileRef}
+                          accept="image/*"
+                          className="form-control"
+                          required
+                        />
+                      </div>
+                      <button type="submit" className="btn btn-synago" style={{ width: '100%' }}>
+                        Upload Premobilisation Photo
+                      </button>
+                    </form>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ color: 'var(--muted-foreground)' }}>Submitted At:</span>
+                        <span style={{ fontWeight: 600 }}>{premobTime}</span>
+                      </div>
+                      <img src={data.arrival.premob_photo_path} className="photo-preview" alt="Premobilisation" />
+                    </div>
                   )}
                 </div>
 
-                {!isSchacenta ? (
-                  <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>
-                    On-the-way vehicle photo logs and transport records are only required for <strong>Area 2
-                    Schacentas</strong>. Area 1 Fellowships proceed directly to counter verification.
-                  </p>
-                ) : (
-                  <>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                      Add one photo and headcount per transport vehicle carrying members to church.
-                    </p>
+                {/* Step 2: On-the-way (Bussing) — Area 2 only */}
+                <div className={`glass dashboard-panel ritual-step${isSchacenta ? ' active' : ''}`}>
+                  <div className="ritual-step-num">2</div>
+                  <div className="ritual-step-title">
+                    On-the-way Bussing
+                    {isSchacenta && arrivalsData && (
+                      <span className="badge badge-info" style={{ marginLeft: 'auto' }}>
+                        {vehicles.length} Vehicles
+                      </span>
+                    )}
+                  </div>
 
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      {vehicles.length === 0 ? (
-                        <div
-                          style={{
-                            color: 'var(--muted-foreground)',
-                            fontSize: '0.85rem',
-                            textAlign: 'center',
-                            padding: '1rem 0',
-                          }}
-                        >
-                          No vehicles logged for this arrival.
-                        </div>
-                      ) : (
-                        <>
-                          {vehicles.map((v) => (
-                            <div className="vehicle-row" key={v.id}>
-                              <div className="vehicle-info">
-                                <img src={v.photo_path} className="vehicle-thumb" alt="Vehicle" />
-                                <div>
-                                  <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{v.vehicle_type}</div>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
-                                    Headcount: <strong>{v.headcount}</strong>
-                                  </div>
-                                </div>
-                              </div>
-                              <button
-                                className="btn btn-danger btn-sm"
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                                onClick={() => deleteVehicle(v.id)}
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          ))}
+                  {!isSchacenta ? (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>
+                      On-the-way vehicle photo logs and transport records are only required for <strong>Area 2
+                      Schacentas</strong>. Area 1 Fellowships proceed directly to counter verification.
+                    </p>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
+                        Add one photo and headcount per transport vehicle carrying members to church.
+                      </p>
+
+                      <div style={{ marginBottom: '1.5rem' }}>
+                        {vehicles.length === 0 ? (
                           <div
                             style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              fontWeight: 'bold',
-                              fontSize: '0.9rem',
-                              padding: '0.75rem 0',
-                              borderTop: '1px solid var(--border)',
-                              marginTop: '0.5rem',
+                              color: 'var(--muted-foreground)',
+                              fontSize: '0.85rem',
+                              textAlign: 'center',
+                              padding: '1rem 0',
                             }}
                           >
-                            <span>Total Self-Reported Count:</span>
-                            <span style={{ color: '#ff7a00' }}>{totalHeadcount}</span>
+                            No vehicles logged for this arrival.
                           </div>
-                        </>
-                      )}
-                    </div>
-
-                    <div
-                      className="glass"
-                      style={{
-                        padding: '1rem',
-                        border: '1px dashed rgba(255,255,255,0.1)',
-                        background: 'rgba(0,0,0,0.1)',
-                      }}
-                    >
-                      <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: '#ff7a00' }}>
-                        Add Vehicle Transport
-                      </h4>
-                      <form onSubmit={handleVehicleSubmit}>
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '0.75rem',
-                            marginBottom: '0.75rem',
-                          }}
-                        >
-                          <div className="form-group" style={{ margin: 0 }}>
-                            <label className="form-label" style={{ fontSize: '0.75rem' }}>
-                              Vehicle Type
-                            </label>
-                            <select
-                              name="vehicle_type"
-                              className="form-control"
-                              required
-                              value={vehicleType}
-                              onChange={(e) => setVehicleType(e.target.value)}
+                        ) : (
+                          <>
+                            {vehicles.map((v) => (
+                              <div className="vehicle-row" key={v.id}>
+                                <div className="vehicle-info">
+                                  <img src={v.photo_path} className="vehicle-thumb" alt="Vehicle" />
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{v.vehicle_type}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                                      Headcount: <strong>{v.headcount}</strong>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  className="btn btn-danger btn-sm"
+                                  style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                  onClick={() => deleteVehicle(v.id)}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ))}
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                fontWeight: 'bold',
+                                fontSize: '0.9rem',
+                                padding: '0.75rem 0',
+                                borderTop: '1px solid var(--border)',
+                                marginTop: '0.5rem',
+                              }}
                             >
-                              <option value="Bus">Bus</option>
-                              <option value="Sprinter">Sprinter</option>
-                              <option value="Taxi">Taxi</option>
-                              <option value="Private">Private</option>
-                            </select>
+                              <span>Total Self-Reported Count:</span>
+                              <span style={{ color: '#ff7a00' }}>{totalHeadcount}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      <div
+                        className="glass"
+                        style={{
+                          padding: '1rem',
+                          border: '1px dashed rgba(255,255,255,0.1)',
+                          background: 'rgba(0,0,0,0.1)',
+                        }}
+                      >
+                        <h4 style={{ fontSize: '0.9rem', marginBottom: '0.75rem', color: '#ff7a00' }}>
+                          Add Vehicle Transport
+                        </h4>
+                        <form onSubmit={handleVehicleSubmit}>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: '1fr 1fr',
+                              gap: '0.75rem',
+                              marginBottom: '0.75rem',
+                            }}
+                          >
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label" style={{ fontSize: '0.75rem' }}>
+                                Vehicle Type
+                              </label>
+                              <select
+                                name="vehicle_type"
+                                className="form-control"
+                                required
+                                value={vehicleType}
+                                onChange={(e) => setVehicleType(e.target.value)}
+                              >
+                                <option value="Bus">Bus</option>
+                                <option value="Sprinter">Sprinter</option>
+                                <option value="Taxi">Taxi</option>
+                                <option value="Private">Private</option>
+                              </select>
+                            </div>
+                            <div className="form-group" style={{ margin: 0 }}>
+                              <label className="form-label" style={{ fontSize: '0.75rem' }}>
+                                Headcount
+                              </label>
+                              <input
+                                type="number"
+                                name="headcount"
+                                className="form-control"
+                                placeholder="Number of occupants"
+                                min="1"
+                                required
+                                value={vehicleHeadcount}
+                                onChange={(e) => setVehicleHeadcount(e.target.value)}
+                              />
+                            </div>
                           </div>
-                          <div className="form-group" style={{ margin: 0 }}>
+                          <div className="form-group">
                             <label className="form-label" style={{ fontSize: '0.75rem' }}>
-                              Headcount
+                              Vehicle Photo
                             </label>
                             <input
-                              type="number"
-                              name="headcount"
+                              type="file"
+                              name="picture"
+                              ref={vehicleFileRef}
+                              accept="image/*"
                               className="form-control"
-                              placeholder="Number of occupants"
-                              min="1"
                               required
-                              value={vehicleHeadcount}
-                              onChange={(e) => setVehicleHeadcount(e.target.value)}
                             />
                           </div>
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontSize: '0.75rem' }}>
-                            Vehicle Photo
-                          </label>
-                          <input
-                            type="file"
-                            name="picture"
-                            ref={vehicleFileRef}
-                            accept="image/*"
-                            className="form-control"
-                            required
-                          />
-                        </div>
-                        <button type="submit" className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
-                          Add Vehicle Row
-                        </button>
-                      </form>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                          <button type="submit" className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
+                            Add Vehicle Row
+                          </button>
+                        </form>
+                      </div>
+                    </>
+                  )}
+                </div>
 
-            {/* VERIFICATION */}
-            {activeNav === 'verification' && (
-              <div className="glass dashboard-panel">
-                <div className="ritual-step-title">Counter Verification &amp; Official Count</div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-                  An Arrivals Admin or Counter will review your submission and record the verified headcount.
-                  <strong> This is the official Saturday attendance figure.</strong>
-                </p>
+                {/* Step 3: Counter Verification */}
+                <div className="glass dashboard-panel ritual-step">
+                  <div className="ritual-step-num">3</div>
+                  <div className="ritual-step-title">Counter Verification &amp; Official Count</div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+                    An Arrivals Admin or Counter will review your submission and record the verified headcount.
+                    <strong> This is the official Saturday attendance figure.</strong>
+                  </p>
 
-                <div
-                  className="flex-between"
-                  style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)' }}
-                >
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>APPROVAL STATUS</div>
-                    <div style={{ fontWeight: 700, color: verification.color, marginTop: '0.25rem' }}>
-                      {verification.text}
+                  <div
+                    className="flex-between"
+                    style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: 'var(--radius-md)' }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>APPROVAL STATUS</div>
+                      <div style={{ fontWeight: 700, color: verification.color, marginTop: '0.25rem' }}>
+                        {verification.text}
+                      </div>
                     </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>OFFICIAL HEADCOUNT</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ff7a00' }}>{verification.count}</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>OFFICIAL HEADCOUNT</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ff7a00' }}>{verification.count}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </>
             )}
 
             {/* ROSTER */}
