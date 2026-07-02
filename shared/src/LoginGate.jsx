@@ -15,12 +15,26 @@ export default function LoginGate({ appName, children }) {
 function LoginScreen({ appName }) {
   const [users, setUsers] = useState(null);
   const [username, setUsername] = useState('');
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
     fetch('/api/users')
-      .then((res) => res.json())
-      .then(setUsers)
-      .catch((err) => console.error(err));
+      .then(async (res) => {
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !Array.isArray(data)) {
+          // The API returns { error } on failure (e.g. the database is
+          // unreachable). Surface it instead of leaving `users` non-array,
+          // which used to crash the sign-in handler.
+          throw new Error((data && data.error) || `Server error (${res.status})`);
+        }
+        return data;
+      })
+      .then((data) => setUsers(data))
+      .catch((err) => {
+        console.error(err);
+        setUsers([]);
+        setLoadError(err.message || 'Could not reach the server.');
+      });
   }, []);
 
   const logoColor =
@@ -57,8 +71,13 @@ function LoginScreen({ appName }) {
 
   function handleSubmit(e) {
     e.preventDefault();
+    if (loadError) {
+      alert(`Cannot sign in — ${loadError}`);
+      return;
+    }
     const val = username.trim();
-    const userFound = (users || []).find((u) => u.username === val);
+    const list = Array.isArray(users) ? users : [];
+    const userFound = list.find((u) => u.username === val);
     if (userFound) {
       loginUser(userFound);
     } else {

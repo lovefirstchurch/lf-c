@@ -14,15 +14,18 @@ export default function Sidebar({ appName, gradient, open, onClose, user, childr
         <div className="Sidebar-header">
           <div className="Sidebar-logo">
             <img src="/shared/images/love-first-logo.png" alt="Love First Church" />
-            <div
-              className="Sidebar-logo-text"
-              style={{
-                background: gradient,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              {appName}
+            <div className="Sidebar-logo-text-group">
+              <div className="Sidebar-logo-title">Love First</div>
+              <div
+                className="Sidebar-logo-sub"
+                style={{
+                  background: gradient,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
+                {appName}
+              </div>
             </div>
           </div>
           <button className="Sidebar-close-btn" onClick={onClose} aria-label="Close Sidebar">
@@ -56,25 +59,17 @@ export default function Sidebar({ appName, gradient, open, onClose, user, childr
             </div>
           </div>
           <button
-            className="btn btn-secondary btn-sm"
-            style={{
-              padding: '0.4rem',
-              borderRadius: '50%',
-              width: 32,
-              height: 32,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            className="Sidebar-signout-btn"
             title="Sign Out"
+            aria-label="Sign Out"
             onClick={() => {
               clearCurrentUserId();
               window.location.reload();
             }}
           >
             <svg
-              width="14"
-              height="14"
+              width="18"
+              height="18"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
