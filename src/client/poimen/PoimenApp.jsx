@@ -13,7 +13,7 @@ import DirectoryView from './views/DirectoryView.jsx';
 import ArrivalsAdminView from './views/ArrivalsAdminView.jsx';
 import ShepherdingView from './views/ShepherdingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
-import './poimen.css';
+
 
 // The vanilla app used "/" as the root view's URL; the React port uses
 // /poimen so the landing page route at "/" stays reachable. All drill-down
