@@ -11,6 +11,7 @@ import ServicesView from './views/ServicesView.jsx';
 import ArrivalsAdminView from './views/ArrivalsAdminView.jsx';
 import ShepherdingView from './views/ShepherdingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
+import MemberProfileView from './views/MemberProfileView.jsx';
 
 
 // Poimen is a standalone app: its own domain root ("/") and "/poimen" both
@@ -36,6 +37,9 @@ export function resolveUrl(urlPath) {
   }
   if ((match = urlPath.match(/^\/unit\/(\d+)\/saturday\/([\d-]+)$/))) {
     return { type: 'unit_saturday', id: parseInt(match[1]), date: match[2] };
+  }
+  if ((match = urlPath.match(/^\/member\/(\d+)$/))) {
+    return { type: 'member', id: parseInt(match[1]) };
   }
   if (urlPath === '/directory') return { type: 'directory' };
   if (urlPath === '/services') return { type: 'services' };
@@ -506,6 +510,9 @@ function StackView({ urlPath, inert }) {
       break;
     case 'unit_saturday':
       content = <UnitSaturdayView routeData={routeData} />;
+      break;
+    case 'member':
+      content = <MemberProfileView routeData={routeData} />;
       break;
     case 'directory':
       content = <DirectoryView />;

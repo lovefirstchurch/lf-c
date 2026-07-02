@@ -398,7 +398,7 @@ export default function UnitView({ routeData }) {
             )}
             {data &&
               data.members.map((m) => (
-                <div key={m.id} className="list-tile">
+                <a href={`/member/${m.id}`} key={m.id} className="list-tile">
                   <div className="list-tile-avatar">{m.name.charAt(0)}</div>
                   <div className="list-tile-body">
                     <div className="list-tile-title">{m.name}</div>
@@ -407,13 +407,17 @@ export default function UnitView({ routeData }) {
                   {data.isScopeAdmin && (
                     <button
                       className="btn btn-secondary btn-sm"
-                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}
-                      onClick={() => reassignMember(m.id)}
+                      style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem', position: 'relative', zIndex: 5 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        reassignMember(m.id);
+                      }}
                     >
                       Move
                     </button>
                   )}
-                </div>
+                </a>
               ))}
           </div>
         </div>
