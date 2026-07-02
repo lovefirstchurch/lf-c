@@ -129,6 +129,37 @@ export async function GET(
       return NextResponse.json(members);
     }
 
+    // GET /api/members/:id
+    if (segments.length === 2 && segments[0] === 'members') {
+      const memberId = parseInt(segments[1]);
+      const member = await get(`
+        SELECT m.*, u.name as unit_name, u.type as unit_type, g.name as governorship_name, a.name as area_name
+        FROM lfc_demo_members m
+        JOIN lfc_demo_units u ON m.unit_id = u.id
+        JOIN lfc_demo_governorships g ON u.governorship_id = g.id
+        JOIN lfc_demo_areas a ON g.area_id = a.id
+        WHERE m.id = ?
+      `, [memberId]);
+      if (!member) {
+        return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
+      }
+      
+      const completed = await all(`
+        SELECT mm.milestone_id, mm.completed_at, u.name as assigned_by_name
+        FROM lfc_demo_member_milestones mm
+        LEFT JOIN lfc_demo_users u ON mm.assigned_by_leader_id = u.id
+        WHERE mm.member_id = ?
+      `, [memberId]);
+      
+      return NextResponse.json({ member, completed });
+    }
+
+    // GET /api/milestones/definitions
+    if (path === '/milestones/definitions') {
+      const definitions = await all("SELECT * FROM lfc_demo_milestone_definitions ORDER BY sequence");
+      return NextResponse.json(definitions);
+    }
+
     // GET /api/hierarchy
     if (path === '/hierarchy') {
       const areasList = await all("SELECT * FROM lfc_demo_areas");
@@ -698,6 +729,50 @@ export async function POST(
       return NextResponse.json({ success: true, ticks: newTicks });
     }
 
+    // POST /api/members/:id/milestones
+    if (segments.length === 3 && segments[0] === 'members' && segments[2] === 'milestones') {
+      const memberId = parseInt(segments[1]);
+      const { milestone_id, is_completed } = body;
+      
+      const member = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [memberId]);
+      if (!member) {
+        return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
+      }
+
+      const targetUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [member.unit_id]);
+      const { role, governorship_id, unit_id: userUnitId } = user;
+      let allowed = role === 'Chief Admin';
+      if (!allowed && (role === 'Governor' || role === 'Governorship Admin')) {
+        allowed = (targetUnit.governorship_id === governorship_id);
+      } else if (!allowed && (role === 'Area 1 Shepherd' || role === 'Area 2 Schacenta Leader')) {
+        allowed = (member.unit_id === userUnitId);
+      }
+
+      if (!allowed) {
+        return NextResponse.json({ error: 'Unauthorized to toggle milestones for this member.' }, { status: 403 });
+      }
+
+      const oldMilestones = await all("SELECT * FROM lfc_demo_member_milestones WHERE member_id = ?", [memberId]);
+
+      if (is_completed) {
+        await run(`
+          INSERT INTO lfc_demo_member_milestones (member_id, milestone_id, completed_at, assigned_by_leader_id)
+          VALUES (?, ?, now(), ?)
+          ON CONFLICT(member_id, milestone_id) DO NOTHING
+        `, [memberId, parseInt(milestone_id), user.id]);
+      } else {
+        await run(`
+          DELETE FROM lfc_demo_member_milestones
+          WHERE member_id = ? AND milestone_id = ?
+        `, [memberId, parseInt(milestone_id)]);
+      }
+
+      const newMilestones = await all("SELECT * FROM lfc_demo_member_milestones WHERE member_id = ?", [memberId]);
+      await addAuditLog(user.id, user.name, user.role, 'TOGGLE_MILESTONE', 'member_milestones', memberId, oldMilestones, newMilestones);
+
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: `Not Found: POST ${path}` }, { status: 404 });
   } catch (error: any) {
     console.error("Poimen API POST Error:", error);
@@ -776,7 +851,7 @@ export async function PUT(
     // PUT /api/members/:id
     if (segments.length === 2 && segments[0] === 'members') {
       const memberId = parseInt(segments[1]);
-      const { name, phone, email, unit_id, is_active } = body;
+      const { name, phone, email, unit_id, is_active, date_of_birth, school, is_working, creative_art_id, status } = body;
 
       const oldMember = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [memberId]);
       if (!oldMember) return NextResponse.json({ error: 'Member not found.' }, { status: 404 });
@@ -807,10 +882,23 @@ export async function PUT(
       const updatedUnitId = unit_id ? parseInt(unit_id) : oldMember.unit_id;
       const updatedActive = is_active !== undefined ? parseInt(is_active) : oldMember.is_active;
 
-      await run(
-        "UPDATE lfc_demo_members SET name = ?, phone = ?, email = ?, unit_id = ?, is_active = ? WHERE id = ?",
-        [updatedName, updatedPhone, updatedEmail, updatedUnitId, updatedActive, memberId]
-      );
+      const updatedDob = date_of_birth !== undefined ? date_of_birth : oldMember.date_of_birth;
+      const updatedSchool = school !== undefined ? school : oldMember.school;
+      const updatedWorking = is_working !== undefined ? parseInt(is_working) : oldMember.is_working;
+      const updatedArt = creative_art_id !== undefined ? creative_art_id : oldMember.creative_art_id;
+      const updatedStatus = status !== undefined ? status : oldMember.status;
+      const updatedPic = file ? await uploadToR2(file, 'photo') : oldMember.photo_url;
+
+      await run(`
+        UPDATE lfc_demo_members 
+        SET name = ?, phone = ?, email = ?, unit_id = ?, is_active = ?,
+            date_of_birth = ?, school = ?, is_working = ?, creative_art_id = ?, status = ?, photo_url = ?
+        WHERE id = ?
+      `, [
+        updatedName, updatedPhone, updatedEmail, updatedUnitId, updatedActive,
+        updatedDob, updatedSchool, updatedWorking, updatedArt, updatedStatus, updatedPic,
+        memberId
+      ]);
 
       const newMember = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [memberId]);
       await addAuditLog(user.id, user.name, user.role, 'UPDATE', 'member', memberId, oldMember, newMember);

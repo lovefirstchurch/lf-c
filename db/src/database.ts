@@ -204,7 +204,30 @@ export async function initDb(): Promise<void> {
       phone TEXT NOT NULL,
       email TEXT,
       unit_id INTEGER NOT NULL REFERENCES lfc_demo_units(id),
+      date_of_birth TEXT,
+      school TEXT,
+      is_working INTEGER DEFAULT 0,
+      creative_art_id TEXT,
+      status TEXT DEFAULT 'committed',
+      photo_url TEXT,
       is_active INTEGER DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS lfc_demo_milestone_definitions (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      sequence INTEGER NOT NULL,
+      target_days INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS lfc_demo_member_milestones (
+      id SERIAL PRIMARY KEY,
+      member_id INTEGER NOT NULL REFERENCES lfc_demo_members(id) ON DELETE CASCADE,
+      milestone_id INTEGER NOT NULL REFERENCES lfc_demo_milestone_definitions(id) ON DELETE CASCADE,
+      completed_at TEXT NOT NULL,
+      assigned_by_leader_id INTEGER REFERENCES lfc_demo_users(id) ON DELETE SET NULL,
+      UNIQUE(member_id, milestone_id)
     );
 
     CREATE TABLE IF NOT EXISTS lfc_demo_midweek_services (
@@ -284,6 +307,12 @@ export async function initDb(): Promise<void> {
   await exec(`
     ALTER TABLE lfc_demo_users ADD COLUMN IF NOT EXISTS password_hash TEXT;
     ALTER TABLE lfc_demo_users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT true;
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS date_of_birth TEXT;
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS school TEXT;
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS is_working INTEGER DEFAULT 0;
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS creative_art_id TEXT;
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'committed';
+    ALTER TABLE lfc_demo_members ADD COLUMN IF NOT EXISTS photo_url TEXT;
   `);
 
   // Seed standard data if not seeded already
@@ -332,30 +361,26 @@ export async function initDb(): Promise<void> {
     await run("UPDATE lfc_demo_users SET unit_id = 4 WHERE id = 10");
 
     // 5. Seed Members
-    const members = [
-      // Adenta Fellowship
-      { name: 'Kojo Antwi', phone: '+233244111222', email: 'kojo@example.com', unit_id: 1 },
-      { name: 'Ama Konadu', phone: '+233244333444', email: 'ama@example.com', unit_id: 1 },
-      { name: 'Kwesi Pratt', phone: '+233244555666', email: 'kwesi@example.com', unit_id: 1 },
-      { name: 'Esi Mansa', phone: '+233244777888', email: 'esi@example.com', unit_id: 1 },
-      // Madina Fellowship
-      { name: 'Yaw Boateng', phone: '+233244999000', email: 'yaw@example.com', unit_id: 2 },
-      { name: 'Akua Agyapong', phone: '+233202111222', email: 'akua@example.com', unit_id: 2 },
-      { name: 'Kwabena Yeboah', phone: '+233202333444', email: 'kwabena@example.com', unit_id: 2 },
-      // East Legon Schacenta
-      { name: 'John Dumelo', phone: '+233202555666', email: 'john@example.com', unit_id: 3 },
-      { name: 'Yvonne Nelson', phone: '+233202777888', email: 'yvonne@example.com', unit_id: 3 },
-      { name: 'Jackie Appiah', phone: '+233202999000', email: 'jackie@example.com', unit_id: 3 },
-      { name: 'Sarkodie Addo', phone: '+233555111222', email: 'sark@example.com', unit_id: 3 },
-      { name: 'Stonebwoy Satekla', phone: '+233555333444', email: 'stone@example.com', unit_id: 3 },
-      // Airport Schacenta
-      { name: 'Majid Michel', phone: '+233555555666', email: 'majid@example.com', unit_id: 4 },
-      { name: 'Nadia Buari', phone: '+233555777888', email: 'nadia@example.com', unit_id: 4 },
-      { name: 'Joselyn Dumas', phone: '+233555999000', email: 'joselyn@example.com', unit_id: 4 }
-    ];
+    const members: any[] = [];
 
     for (const m of members) {
       await run("INSERT INTO lfc_demo_members (name, phone, email, unit_id) VALUES (?, ?, ?, ?)", [m.name, m.phone, m.email, m.unit_id]);
+    }
+
+    // 5b. Seed Milestone Definitions
+    console.log("Seeding milestone definitions...");
+    const definitions = [
+      { name: 'Water Baptism', description: 'Baptism by immersion in water', sequence: 1, target_days: 30 },
+      { name: 'Holy Ghost Baptism', description: 'Baptism of the Holy Spirit with evidence of speaking in tongues', sequence: 2, target_days: 60 },
+      { name: 'Foundation Class', description: 'Completion of foundational Christian teachings', sequence: 3, target_days: 90 },
+      { name: 'Encounter Weekend', description: 'Attendance at a spiritual encounter retreat', sequence: 4, target_days: 120 },
+      { name: 'Regular Tither', description: 'Consistently giving tithes for 3 consecutive months', sequence: 5, target_days: 150 },
+      { name: 'Soul Winner', description: 'Personally leading at least two souls to Christ', sequence: 6, target_days: 180 },
+      { name: 'Cell Group Member', description: 'Active and regular attendee of a cell group/Schacenta', sequence: 7, target_days: 210 },
+      { name: 'Commissioned Shepherd', description: 'Officially commissioned to shephard a group', sequence: 8, target_days: 360 }
+    ];
+    for (const d of definitions) {
+      await run("INSERT INTO lfc_demo_milestone_definitions (name, description, sequence, target_days) VALUES (?, ?, ?, ?)", [d.name, d.description, d.sequence, d.target_days]);
     }
 
     // 6. Seed Config

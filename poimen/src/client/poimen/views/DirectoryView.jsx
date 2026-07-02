@@ -72,7 +72,7 @@ export default function DirectoryView() {
         )}
         {list &&
           list.map((m) => (
-            <div className="list-tile" key={m.id}>
+            <a href={`/member/${m.id}`} className="list-tile" key={m.id}>
               <div className="list-tile-avatar">{m.name.charAt(0)}</div>
               <div className="list-tile-body">
                 <div className="list-tile-title">{m.name}</div>
@@ -82,7 +82,7 @@ export default function DirectoryView() {
                 </div>
               </div>
               <span className="list-tile-chip">{m.unit_name}</span>
-            </div>
+            </a>
           ))}
       </div>
     </ViewShell>
