@@ -12,6 +12,7 @@ import ArrivalsAdminView from './views/ArrivalsAdminView.jsx';
 import ShepherdingView from './views/ShepherdingView.jsx';
 import HistoryView from './views/HistoryView.jsx';
 import MemberProfileView from './views/MemberProfileView.jsx';
+import LeadersView from './views/LeadersView.jsx';
 
 
 // Poimen is a standalone app: its own domain root ("/") and "/poimen" both
@@ -46,6 +47,7 @@ export function resolveUrl(urlPath) {
   if (urlPath === '/arrivals-admin') return { type: 'arrivals_admin' };
   if (urlPath === '/shepherding') return { type: 'shepherding' };
   if (urlPath === '/history') return { type: 'history' };
+  if (urlPath === '/leaders') return { type: 'leaders' };
 
   return null;
 }
@@ -528,6 +530,9 @@ function StackView({ urlPath, inert }) {
       break;
     case 'history':
       content = <HistoryView />;
+      break;
+    case 'leaders':
+      content = <LeadersView />;
       break;
     default:
       content = <RootView />;

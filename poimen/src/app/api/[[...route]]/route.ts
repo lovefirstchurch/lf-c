@@ -514,7 +514,17 @@ export async function POST(
     // optionally assigning them to a governorship or unit right away.
     if (path === '/leaders') {
       const { name, username, role, governorship_id, unit_id } = body;
-      const LEADER_ROLES = ['Governor', 'Governorship Admin', 'Area 1 Shepherd', 'Area 2 Schacenta Leader'];
+      const LEADER_ROLES = [
+        'Chief Admin',
+        'Resident Pastor',
+        'Resident Mother',
+        'Governor',
+        'Governorship Admin',
+        'Area 1 Shepherd',
+        'Area 2 Schacenta Leader',
+        'Arrivals Admin',
+        'Counter'
+      ];
 
       if (!LEADER_ROLES.includes(role)) {
         return NextResponse.json({ error: 'Invalid leader role.' }, { status: 400 });
