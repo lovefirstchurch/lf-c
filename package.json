@@ -1,29 +1,18 @@
 {
-  "name": "lf-c",
-  "version": "0.1.0",
+  "name": "lf-c-monorepo",
+  "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "synago",
+    "poimen",
+    "db",
+    "shared"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.1078.0",
-    "next": "16.2.10",
-    "postgres": "^3.4.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-router-dom": "^7.18.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.10",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "dev:synago": "npm run dev --workspace=@lfc/synago",
+    "dev:poimen": "npm run dev --workspace=@lfc/poimen",
+    "build:synago": "npm run build --workspace=@lfc/synago",
+    "build:poimen": "npm run build --workspace=@lfc/poimen",
+    "build": "npm run build --workspaces --if-present"
   }
 }
