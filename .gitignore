@@ -4,3 +4,4 @@ lfc_church.db-journal
 uploads/
 package-lock.json
 .DS_Store
+client/dist/

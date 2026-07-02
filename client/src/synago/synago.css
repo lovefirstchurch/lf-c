@@ -1,0 +1,179 @@
+/* Ported from the inline <style> block of public/synago/index.html.
+   Synago's real app is a flat near-black UI with an orange accent, not
+   the shared cyan/purple glassmorphism used elsewhere in this prototype.
+   The body rule is scoped to body.synago-body and .grid-dashboard under
+   .synago-container because all app styles now ship in one bundle. */
+body.synago-body {
+  background-image:
+    radial-gradient(at 0% 0%, rgba(255, 122, 0, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(253, 93, 150, 0.04) 0px, transparent 50%);
+}
+.synago-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem 6rem;
+}
+.synago-container .glass {
+  background: #1a1f26;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+}
+.synago-container .form-control:focus {
+  border-color: #ff7a00;
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.15);
+}
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+.logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 122, 0, 0.4);
+}
+.logo-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.logo-text h1 {
+  font-size: 1.5rem;
+  background: linear-gradient(to right, #ff7a00, #fd5d96);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.logo-text p {
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+.synago-container .grid-dashboard {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 900px) {
+  .synago-container .grid-dashboard {
+    grid-template-columns: 1fr 1.5fr;
+  }
+}
+.dashboard-panel {
+  padding: 1.5rem;
+  min-height: 200px;
+}
+.ritual-step {
+  border-left: 3px solid rgba(255, 255, 255, 0.08);
+  padding-left: 1.5rem;
+  margin-bottom: 2.5rem;
+  position: relative;
+}
+.ritual-step.active {
+  border-left-color: #ff7a00;
+}
+.ritual-step-num {
+  position: absolute;
+  left: -13px;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--bg-color);
+}
+.ritual-step.active .ritual-step-num {
+  background: #ff7a00;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.4);
+}
+.ritual-step-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.photo-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-top: 1rem;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.vehicle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.vehicle-info {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.vehicle-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.nav-tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+.nav-tab {
+  background: none;
+  border: none;
+  color: var(--muted-foreground);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  position: relative;
+}
+.nav-tab.active {
+  color: #ff7a00;
+}
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #ff7a00;
+  border-radius: 9999px;
+}
+.member-list-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.member-list-item:last-child {
+  border-bottom: none;
+}

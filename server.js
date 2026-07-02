@@ -2,8 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const { initDb, db, run, get, all, addAuditLog } = require('./database');
+const { initDb, run, get, all, addAuditLog, transaction } = require('./database');
+const { uploadToR2 } = require('./r2');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -12,118 +12,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Uploads go straight to Cloudflare R2 (see r2.js) instead of local disk --
+// Vercel serverless functions have no persistent/writable filesystem.
+const upload = multer({ storage: multer.memoryStorage() });
 
-// Write a placeholder sample image for seeding uploads
-const sampleImagePath = path.join(uploadsDir, 'sample_midweek.jpg');
-if (!fs.existsSync(sampleImagePath)) {
-  fs.writeFileSync(sampleImagePath, 'Fake image data');
-}
-fs.writeFileSync(path.join(uploadsDir, 'sample_premob.jpg'), 'Fake image data');
-fs.writeFileSync(path.join(uploadsDir, 'sample_bus.jpg'), 'Fake image data');
-fs.writeFileSync(path.join(uploadsDir, 'sample_sprinter.jpg'), 'Fake image data');
-fs.writeFileSync(path.join(uploadsDir, 'sample_taxi.jpg'), 'Fake image data');
-
-// Multer upload config
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
-
-// Serve static files
-app.use('/uploads', express.static(uploadsDir));
-app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
-app.use('/synago', express.static(path.join(__dirname, 'public/synago')));
-app.use('/poimen', express.static(path.join(__dirname, 'public/poimen')));
-
-// SPA Wildcard fallbacks to support client-side routing
-app.get(/^\/synago($|\/.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/synago/index.html'));
-});
-
-app.get(/^\/poimen($|\/.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/poimen/index.html'));
-});
-
-// Redirect root to Poimen or Synago chooser
-app.get('/', (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>LFC Church Management System</title>
-        <style>
-          body {
-            background-color: #0e151b;
-            color: #fafafa;
-            font-family: system-ui, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100dvh;
-            margin: 0;
-          }
-          .container {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 3rem;
-            border-radius: 12px;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-          }
-          h1 {
-            color: #3acff8;
-            margin-bottom: 2rem;
-          }
-          .btn {
-            display: block;
-            width: 250px;
-            padding: 1rem;
-            margin: 1rem auto;
-            text-decoration: none;
-            color: #fff;
-            border-radius: 6px;
-            font-weight: bold;
-            transition: all 0.3s;
-          }
-          .btn-synago {
-            background: linear-gradient(135deg, #ff7a00, #fd5d96);
-          }
-          .btn-poimen {
-            background: linear-gradient(135deg, #a855f7, #3acff8);
-          }
-          .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 15px rgba(255,255,255,0.2);
-          }
-          p {
-            color: #888;
-            margin-top: 2rem;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>LFC Church Management System</h1>
-          <a href="/synago" class="btn btn-synago">Go to Synago (App 1)</a>
-          <a href="/poimen" class="btn btn-poimen">Go to Poimen (App 2)</a>
-          <p>Two separate apps sharing one database</p>
-        </div>
-      </body>
-    </html>
-  `);
-});
+// Serve the built React client (the old public/ static apps were ported to
+// a Vite + React app in client/; run `npm run build` to produce client/dist).
+const clientDist = path.join(__dirname, 'client/dist');
+app.use(express.static(clientDist));
 
 // Middleware to extract user from headers (simulate session authentication)
 // Also performs audit logging on all access/writes
@@ -134,7 +30,7 @@ async function authMiddleware(req, res, next) {
   }
 
   const userId = parseInt(userIdStr);
-  const user = await get("SELECT * FROM users WHERE id = ?", [userId]);
+  const user = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userId]);
   if (!user) {
     return res.status(403).json({ error: 'Invalid user.' });
   }
@@ -169,7 +65,7 @@ async function logReadMiddleware(req, res, next) {
 
 // --- AUTH & SWITCHER API (UNAUTHENTICATED FOR LOGIN SCREEN) ---
 app.get('/api/users', async (req, res) => {
-  const users = await all("SELECT * FROM users");
+  const users = await all("SELECT * FROM lfc_demo_users");
   res.json(users);
 });
 
@@ -183,43 +79,43 @@ app.get('/api/me', (req, res) => {
 // --- CORE HIERARCHY API ---
 // Navigation drilldown: Area -> Governorship -> Unit -> Member
 app.get('/api/areas', async (req, res) => {
-  const areas = await all("SELECT * FROM areas");
+  const areas = await all("SELECT * FROM lfc_demo_areas");
   res.json(areas);
 });
 
 app.get('/api/areas/:id/governorships', async (req, res) => {
-  const govships = await all("SELECT * FROM governorships WHERE area_id = ?", [req.params.id]);
+  const govships = await all("SELECT * FROM lfc_demo_governorships WHERE area_id = ?", [req.params.id]);
   res.json(govships);
 });
 
 app.get('/api/governorships/:id/units', async (req, res) => {
   const units = await all(`
     SELECT u.*, us.name as leader_name 
-    FROM units u
-    LEFT JOIN users us ON u.leader_id = us.id
+    FROM lfc_demo_units u
+    LEFT JOIN lfc_demo_users us ON u.leader_id = us.id
     WHERE u.governorship_id = ?
   `, [req.params.id]);
   res.json(units);
 });
 
 app.get('/api/units/:id/members', async (req, res) => {
-  const members = await all("SELECT * FROM members WHERE unit_id = ? AND is_active = 1", [req.params.id]);
+  const members = await all("SELECT * FROM lfc_demo_members WHERE unit_id = ? AND is_active = 1", [req.params.id]);
   res.json(members);
 });
 
 // Full hierarchy structure for admin console tree
 app.get('/api/hierarchy', async (req, res) => {
-  const areasList = await all("SELECT * FROM areas");
+  const areasList = await all("SELECT * FROM lfc_demo_areas");
   const govsList = await all(`
     SELECT g.*, u.name as governor_name, ua.name as admin_name
-    FROM governorships g
-    LEFT JOIN users u ON g.governor_id = u.id
-    LEFT JOIN users ua ON g.admin_id = ua.id
+    FROM lfc_demo_governorships g
+    LEFT JOIN lfc_demo_users u ON g.governor_id = u.id
+    LEFT JOIN lfc_demo_users ua ON g.admin_id = ua.id
   `);
   const unitsList = await all(`
     SELECT u.*, us.name as leader_name 
-    FROM units u
-    LEFT JOIN users us ON u.leader_id = us.id
+    FROM lfc_demo_units u
+    LEFT JOIN lfc_demo_users us ON u.leader_id = us.id
   `);
   
   // Reconstruct tree
@@ -241,10 +137,10 @@ app.get('/api/directory', async (req, res) => {
   // Shepherds / Schacenta leaders get only their own unit roster.
   let query = `
     SELECT m.*, u.name as unit_name, u.type as unit_type, g.name as governorship_name, a.name as area_name
-    FROM members m
-    JOIN units u ON m.unit_id = u.id
-    JOIN governorships g ON u.governorship_id = g.id
-    JOIN areas a ON g.area_id = a.id
+    FROM lfc_demo_members m
+    JOIN lfc_demo_units u ON m.unit_id = u.id
+    JOIN lfc_demo_governorships g ON u.governorship_id = g.id
+    JOIN lfc_demo_areas a ON g.area_id = a.id
     WHERE 1=1
   `;
   const params = [];
@@ -261,7 +157,7 @@ app.get('/api/directory', async (req, res) => {
 
   // Filter query parameters
   if (req.query.search) {
-    query += " AND (m.name LIKE ? OR m.phone LIKE ? OR m.email LIKE ?)";
+    query += " AND (m.name ILIKE ? OR m.phone ILIKE ? OR m.email ILIKE ?)";
     const term = `%${req.query.search}%`;
     params.push(term, term, term);
   }
@@ -295,16 +191,16 @@ app.post('/api/units', async (req, res) => {
 
   try {
     const result = await run(
-      "INSERT INTO units (name, type, governorship_id, leader_id) VALUES (?, ?, ?, ?)",
+      "INSERT INTO lfc_demo_units (name, type, governorship_id, leader_id) VALUES (?, ?, ?, ?)",
       [name, type, governorship_id, leader_id]
     );
 
     // Update user's unit_id if assigned leader
     if (leader_id) {
-      await run("UPDATE users SET unit_id = ? WHERE id = ?", [result.id, leader_id]);
+      await run("UPDATE lfc_demo_users SET unit_id = ? WHERE id = ?", [result.id, leader_id]);
     }
 
-    const newUnit = await get("SELECT * FROM units WHERE id = ?", [result.id]);
+    const newUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [result.id]);
 
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'CREATE', 'unit', result.id, null, newUnit);
     res.status(201).json(newUnit);
@@ -319,7 +215,7 @@ app.put('/api/units/:id', async (req, res) => {
   const { name, leader_id, governorship_id } = req.body;
   const { role, governorship_id: userGovId } = req.user;
 
-  const oldUnit = await get("SELECT * FROM units WHERE id = ?", [unitId]);
+  const oldUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [unitId]);
   if (!oldUnit) return res.status(404).json({ error: 'Unit not found.' });
 
   // Auth check
@@ -336,20 +232,20 @@ app.put('/api/units/:id', async (req, res) => {
     if (updatedLeaderId !== oldUnit.leader_id) {
       // Clear old leader's unit_id mapping
       if (oldUnit.leader_id) {
-        await run("UPDATE users SET unit_id = NULL WHERE id = ?", [oldUnit.leader_id]);
+        await run("UPDATE lfc_demo_users SET unit_id = NULL WHERE id = ?", [oldUnit.leader_id]);
       }
       // Set new leader's unit_id
       if (updatedLeaderId) {
-        await run("UPDATE users SET unit_id = ? WHERE id = ?", [unitId, updatedLeaderId]);
+        await run("UPDATE lfc_demo_users SET unit_id = ? WHERE id = ?", [unitId, updatedLeaderId]);
       }
     }
 
     await run(
-      "UPDATE units SET name = ?, leader_id = ?, governorship_id = ? WHERE id = ?",
+      "UPDATE lfc_demo_units SET name = ?, leader_id = ?, governorship_id = ? WHERE id = ?",
       [updatedName, updatedLeaderId, updatedGovId, unitId]
     );
 
-    const newUnit = await get("SELECT * FROM units WHERE id = ?", [unitId]);
+    const newUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [unitId]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'UPDATE', 'unit', unitId, oldUnit, newUnit);
 
     res.json(newUnit);
@@ -361,7 +257,7 @@ app.put('/api/units/:id', async (req, res) => {
 // Create Member
 app.post('/api/members', async (req, res) => {
   const { name, phone, email, unit_id } = req.body;
-  const targetUnit = await get("SELECT * FROM units WHERE id = ?", [unit_id]);
+  const targetUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [unit_id]);
   if (!targetUnit) return res.status(400).json({ error: 'Invalid unit selection.' });
 
   const { role, governorship_id, unit_id: userUnitId } = req.user;
@@ -375,10 +271,10 @@ app.post('/api/members', async (req, res) => {
 
   try {
     const result = await run(
-      "INSERT INTO members (name, phone, email, unit_id) VALUES (?, ?, ?, ?)",
+      "INSERT INTO lfc_demo_members (name, phone, email, unit_id) VALUES (?, ?, ?, ?)",
       [name, phone, email, unit_id]
     );
-    const newMember = await get("SELECT * FROM members WHERE id = ?", [result.id]);
+    const newMember = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [result.id]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'CREATE', 'member', result.id, null, newMember);
     res.status(201).json(newMember);
   } catch (err) {
@@ -391,10 +287,10 @@ app.put('/api/members/:id', async (req, res) => {
   const memberId = parseInt(req.params.id);
   const { name, phone, email, unit_id, is_active } = req.body;
 
-  const oldMember = await get("SELECT * FROM members WHERE id = ?", [memberId]);
+  const oldMember = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [memberId]);
   if (!oldMember) return res.status(404).json({ error: 'Member not found.' });
 
-  const sourceUnit = await get("SELECT * FROM units WHERE id = ?", [oldMember.unit_id]);
+  const sourceUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [oldMember.unit_id]);
 
   const { role, governorship_id } = req.user;
 
@@ -403,7 +299,7 @@ app.put('/api/members/:id', async (req, res) => {
   if (!allowed && (role === 'Governor' || role === 'Governorship Admin')) {
     allowed = (sourceUnit.governorship_id === governorship_id);
     if (unit_id) {
-      const targetUnit = await get("SELECT * FROM units WHERE id = ?", [unit_id]);
+      const targetUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [unit_id]);
       if (targetUnit && targetUnit.governorship_id !== governorship_id) {
         allowed = false;
       }
@@ -425,11 +321,11 @@ app.put('/api/members/:id', async (req, res) => {
     const updatedActive = is_active !== undefined ? parseInt(is_active) : oldMember.is_active;
 
     await run(
-      "UPDATE members SET name = ?, phone = ?, email = ?, unit_id = ?, is_active = ? WHERE id = ?",
+      "UPDATE lfc_demo_members SET name = ?, phone = ?, email = ?, unit_id = ?, is_active = ? WHERE id = ?",
       [updatedName, updatedPhone, updatedEmail, updatedUnitId, updatedActive, memberId]
     );
 
-    const newMember = await get("SELECT * FROM members WHERE id = ?", [memberId]);
+    const newMember = await get("SELECT * FROM lfc_demo_members WHERE id = ?", [memberId]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'UPDATE', 'member', memberId, oldMember, newMember);
 
     res.json(newMember);
@@ -444,9 +340,9 @@ app.get('/api/midweek/submissions', async (req, res) => {
   // Get midweek submissions
   let query = `
     SELECT ms.*, u.name as unit_name, u.type as unit_type, us.name as submitter_name
-    FROM midweek_services ms
-    JOIN units u ON ms.unit_id = u.id
-    JOIN users us ON ms.submitted_by = us.id
+    FROM lfc_demo_midweek_services ms
+    JOIN lfc_demo_units u ON ms.unit_id = u.id
+    JOIN lfc_demo_users us ON ms.submitted_by = us.id
   `;
   const params = [];
   const { role, governorship_id, unit_id } = req.user;
@@ -476,17 +372,17 @@ app.post('/api/midweek/submit', upload.single('picture'), async (req, res) => {
   }
 
   try {
-    const picPath = '/uploads/' + req.file.filename;
+    const picPath = await uploadToR2(req.file);
     const result = await run(`
-      INSERT INTO midweek_services (unit_id, service_date, attendance_count, offering_amount, offering_currency, tithers_count, picture_path, notes, submitted_by, submitted_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO lfc_demo_midweek_services (unit_id, service_date, attendance_count, offering_amount, offering_currency, tithers_count, picture_path, notes, submitted_by, submitted_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now())
     `, [unitId, service_date, parseInt(attendance_count), parseFloat(offering_amount), offering_currency || 'GHS', parseInt(tithers_count), picPath, notes, req.user.id]);
 
-    const newSub = await get("SELECT * FROM midweek_services WHERE id = ?", [result.id]);
+    const newSub = await get("SELECT * FROM lfc_demo_midweek_services WHERE id = ?", [result.id]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'CREATE', 'midweek_service', result.id, null, newSub);
     res.status(201).json(newSub);
   } catch (err) {
-    if (err.message.includes('UNIQUE constraint')) {
+    if (err.code === '23505') {
       res.status(400).json({ error: 'A service submission already exists for this date.' });
     } else {
       res.status(500).json({ error: err.message });
@@ -497,10 +393,10 @@ app.post('/api/midweek/submit', upload.single('picture'), async (req, res) => {
 // Edit submitted midweek service report (everything stays editable but audited)
 app.put('/api/midweek/:id', upload.single('picture'), async (req, res) => {
   const subId = parseInt(req.params.id);
-  const oldSub = await get("SELECT * FROM midweek_services WHERE id = ?", [subId]);
+  const oldSub = await get("SELECT * FROM lfc_demo_midweek_services WHERE id = ?", [subId]);
   if (!oldSub) return res.status(404).json({ error: 'Submission not found.' });
 
-  const targetUnit = await get("SELECT * FROM units WHERE id = ?", [oldSub.unit_id]);
+  const targetUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [oldSub.unit_id]);
 
   const { role, governorship_id, unit_id: userUnitId } = req.user;
 
@@ -525,15 +421,15 @@ app.put('/api/midweek/:id', upload.single('picture'), async (req, res) => {
     const updatedCurr = offering_currency || oldSub.offering_currency;
     const updatedTithers = tithers_count !== undefined ? parseInt(tithers_count) : oldSub.tithers_count;
     const updatedNotes = notes !== undefined ? notes : oldSub.notes;
-    const updatedPic = req.file ? ('/uploads/' + req.file.filename) : oldSub.picture_path;
+    const updatedPic = req.file ? await uploadToR2(req.file) : oldSub.picture_path;
 
     await run(`
-      UPDATE midweek_services 
+      UPDATE lfc_demo_midweek_services 
       SET service_date = ?, attendance_count = ?, offering_amount = ?, offering_currency = ?, tithers_count = ?, notes = ?, picture_path = ?
       WHERE id = ?
     `, [updatedDate, updatedAtt, updatedOff, updatedCurr, updatedTithers, updatedNotes, updatedPic, subId]);
 
-    const newSub = await get("SELECT * FROM midweek_services WHERE id = ?", [subId]);
+    const newSub = await get("SELECT * FROM lfc_demo_midweek_services WHERE id = ?", [subId]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'UPDATE', 'midweek_service', subId, oldSub, newSub);
 
     res.json(newSub);
@@ -555,19 +451,19 @@ app.get('/api/synago/arrivals/status', async (req, res) => {
   const today = req.query.date || new Date().toISOString().split('T')[0];
   
   // Find or create Saturday arrivals record
-  let arrival = await get("SELECT * FROM saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
+  let arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
   if (!arrival) {
     // Just return empty structure denoting it hasn't started yet
-    return res.json({ status: 'not_started', config: await get("SELECT * FROM arrivals_config WHERE id = 1") });
+    return res.json({ status: 'not_started', config: await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1") });
   }
 
   // Get vehicles
-  const vehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
+  const vehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
   res.json({
     status: 'started',
     arrival,
     vehicles,
-    config: await get("SELECT * FROM arrivals_config WHERE id = 1")
+    config: await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1")
   });
 });
 
@@ -580,7 +476,7 @@ app.post('/api/synago/arrivals/premob', upload.single('picture'), async (req, re
   const today = req.body.date || new Date().toISOString().split('T')[0];
 
   // Cutoff time check
-  const config = await get("SELECT * FROM arrivals_config WHERE id = 1");
+  const config = await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1");
   const cutoffStr = config.cutoff_time; // e.g. "08:30"
   
   // Check if current time is past cutoff
@@ -598,26 +494,26 @@ app.post('/api/synago/arrivals/premob', upload.single('picture'), async (req, re
   // Let's display warning or reject based on cutoff. Let's allow it but record status/warning.
   
   try {
-    const picPath = '/uploads/' + req.file.filename;
+    const picPath = await uploadToR2(req.file);
     
     // Check if record exists
-    let arrival = await get("SELECT * FROM saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
+    let arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
     
     if (arrival) {
       const oldArrival = { ...arrival };
       await run(`
-        UPDATE saturday_arrivals 
-        SET premob_photo_path = ?, premob_submitted_at = datetime('now')
+        UPDATE lfc_demo_saturday_arrivals 
+        SET premob_photo_path = ?, premob_submitted_at = now()
         WHERE id = ?
       `, [picPath, arrival.id]);
-      arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [arrival.id]);
+      arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [arrival.id]);
       await addAuditLog(req.user.id, req.user.name, req.user.role, 'UPDATE', 'saturday_arrival_premob', arrival.id, oldArrival, arrival);
     } else {
       const result = await run(`
-        INSERT INTO saturday_arrivals (unit_id, arrival_date, status, premob_photo_path, premob_submitted_at)
-        VALUES (?, ?, 'pending', ?, datetime('now'))
+        INSERT INTO lfc_demo_saturday_arrivals (unit_id, arrival_date, status, premob_photo_path, premob_submitted_at)
+        VALUES (?, ?, 'pending', ?, now())
       `, [unitId, today, picPath]);
-      arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [result.id]);
+      arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [result.id]);
       await addAuditLog(req.user.id, req.user.name, req.user.role, 'CREATE', 'saturday_arrival_premob', result.id, null, arrival);
     }
 
@@ -633,7 +529,7 @@ app.post('/api/synago/arrivals/vehicle', upload.single('picture'), async (req, r
   if (!unitId) return res.status(400).json({ error: 'User has no unit assignment.' });
   
   // Verify unit type is Schacenta (Area 2)
-  const unit = await get("SELECT * FROM units WHERE id = ?", [unitId]);
+  const unit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [unitId]);
   if (!unit || unit.type !== 'schacenta') {
     return res.status(400).json({ error: 'Only Area 2 Schacentas can submit on-the-way vehicle reports.' });
   }
@@ -644,27 +540,27 @@ app.post('/api/synago/arrivals/vehicle', upload.single('picture'), async (req, r
   const today = date || new Date().toISOString().split('T')[0];
 
   try {
-    const picPath = '/uploads/' + req.file.filename;
+    const picPath = await uploadToR2(req.file);
 
     // Get or create saturday arrival
-    let arrival = await get("SELECT * FROM saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
+    let arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, today]);
     if (!arrival) {
       const result = await run(`
-        INSERT INTO saturday_arrivals (unit_id, arrival_date, status)
+        INSERT INTO lfc_demo_saturday_arrivals (unit_id, arrival_date, status)
         VALUES (?, ?, 'pending')
       `, [unitId, today]);
-      arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [result.id]);
+      arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [result.id]);
     }
 
-    const oldVehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
+    const oldVehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
     
     // Insert vehicle
     const vResult = await run(`
-      INSERT INTO saturday_vehicles (arrival_id, vehicle_type, photo_path, headcount)
+      INSERT INTO lfc_demo_saturday_vehicles (arrival_id, vehicle_type, photo_path, headcount)
       VALUES (?, ?, ?, ?)
     `, [arrival.id, vehicle_type, picPath, parseInt(headcount)]);
 
-    const newVehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
+    const newVehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'ADD_VEHICLE', 'saturday_arrival', arrival.id, oldVehicles, newVehicles);
 
     res.json({ vehicle_id: vResult.id, arrival, vehicles: newVehicles });
@@ -676,18 +572,18 @@ app.post('/api/synago/arrivals/vehicle', upload.single('picture'), async (req, r
 // Delete Vehicle row
 app.delete('/api/synago/arrivals/vehicle/:id', async (req, res) => {
   const vehicleId = parseInt(req.params.id);
-  const vehicle = await get("SELECT * FROM saturday_vehicles WHERE id = ?", [vehicleId]);
+  const vehicle = await get("SELECT * FROM lfc_demo_saturday_vehicles WHERE id = ?", [vehicleId]);
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found.' });
 
-  const arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [vehicle.arrival_id]);
+  const arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [vehicle.arrival_id]);
   if (arrival.unit_id !== req.user.unit_id) {
     return res.status(403).json({ error: 'Unauthorized to edit this vehicle list.' });
   }
 
   try {
-    const oldVehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
-    await run("DELETE FROM saturday_vehicles WHERE id = ?", [vehicleId]);
-    const newVehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
+    const oldVehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
+    await run("DELETE FROM lfc_demo_saturday_vehicles WHERE id = ?", [vehicleId]);
+    const newVehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [arrival.id]);
     
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'DELETE_VEHICLE', 'saturday_arrival', arrival.id, oldVehicles, newVehicles);
     res.json({ success: true, vehicles: newVehicles });
@@ -700,7 +596,7 @@ app.delete('/api/synago/arrivals/vehicle/:id', async (req, res) => {
 // --- ARRIVALS ADMIN CONSOLE (POIMEN) ---
 
 app.get('/api/arrivals/config', async (req, res) => {
-  const config = await get("SELECT * FROM arrivals_config WHERE id = 1");
+  const config = await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1");
   res.json(config);
 });
 
@@ -711,7 +607,7 @@ app.put('/api/arrivals/config', async (req, res) => {
   }
 
   const { cutoff_time, vehicle_types, headcount_approval_required } = req.body;
-  const oldConfig = await get("SELECT * FROM arrivals_config WHERE id = 1");
+  const oldConfig = await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1");
 
   try {
     const updatedCutoff = cutoff_time || oldConfig.cutoff_time;
@@ -719,12 +615,12 @@ app.put('/api/arrivals/config', async (req, res) => {
     const updatedApproval = headcount_approval_required !== undefined ? parseInt(headcount_approval_required) : oldConfig.headcount_approval_required;
 
     await run(`
-      UPDATE arrivals_config 
+      UPDATE lfc_demo_arrivals_config 
       SET cutoff_time = ?, vehicle_types = ?, headcount_approval_required = ?
       WHERE id = 1
     `, [updatedCutoff, updatedVehicles, updatedApproval]);
 
-    const newConfig = await get("SELECT * FROM arrivals_config WHERE id = 1");
+    const newConfig = await get("SELECT * FROM lfc_demo_arrivals_config WHERE id = 1");
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'UPDATE', 'arrivals_config', 1, oldConfig, newConfig);
 
     res.json(newConfig);
@@ -743,17 +639,17 @@ app.get('/api/arrivals/submissions', async (req, res) => {
            g.name as governorship_name, a.name as area_name,
            sa.id as arrival_id, sa.status, sa.premob_photo_path, sa.premob_submitted_at, 
            sa.approved_headcount, sa.approved_at, sa.approved_by, app_user.name as approved_by_name
-    FROM units u
-    JOIN governorships g ON u.governorship_id = g.id
-    JOIN areas a ON g.area_id = a.id
-    LEFT JOIN saturday_arrivals sa ON sa.unit_id = u.id AND sa.arrival_date = ?
-    LEFT JOIN users app_user ON sa.approved_by = app_user.id
+    FROM lfc_demo_units u
+    JOIN lfc_demo_governorships g ON u.governorship_id = g.id
+    JOIN lfc_demo_areas a ON g.area_id = a.id
+    LEFT JOIN lfc_demo_saturday_arrivals sa ON sa.unit_id = u.id AND sa.arrival_date = ?
+    LEFT JOIN lfc_demo_users app_user ON sa.approved_by = app_user.id
   `, [dateVal]);
 
   // For each submission, fetch vehicles if Schacenta
   for (const sub of submissions) {
     if (sub.arrival_id) {
-      sub.vehicles = await all("SELECT * FROM saturday_vehicles WHERE arrival_id = ?", [sub.arrival_id]);
+      sub.vehicles = await all("SELECT * FROM lfc_demo_saturday_vehicles WHERE arrival_id = ?", [sub.arrival_id]);
       
       // Calculate self-reported headcount from vehicles
       if (sub.unit_type === 'schacenta') {
@@ -786,23 +682,23 @@ app.post('/api/arrivals/approve/:unit_id', async (req, res) => {
   const dateVal = date || new Date().toISOString().split('T')[0];
 
   try {
-    let arrival = await get("SELECT * FROM saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, dateVal]);
+    let arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, dateVal]);
     const oldArrival = arrival ? { ...arrival } : null;
 
     if (arrival) {
       await run(`
-        UPDATE saturday_arrivals 
-        SET status = 'approved', approved_headcount = ?, approved_by = ?, approved_at = datetime('now')
+        UPDATE lfc_demo_saturday_arrivals 
+        SET status = 'approved', approved_headcount = ?, approved_by = ?, approved_at = now()
         WHERE id = ?
       `, [parseInt(headcount), req.user.id, arrival.id]);
     } else {
       await run(`
-        INSERT INTO saturday_arrivals (unit_id, arrival_date, status, approved_headcount, approved_by, approved_at)
-        VALUES (?, ?, 'approved', ?, ?, datetime('now'))
+        INSERT INTO lfc_demo_saturday_arrivals (unit_id, arrival_date, status, approved_headcount, approved_by, approved_at)
+        VALUES (?, ?, 'approved', ?, ?, now())
       `, [unitId, dateVal, parseInt(headcount), req.user.id]);
     }
 
-    const newArrival = await get("SELECT * FROM saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, dateVal]);
+    const newArrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE unit_id = ? AND arrival_date = ?", [unitId, dateVal]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'APPROVE', 'saturday_arrival', newArrival.id, oldArrival, newArrival);
 
     res.json(newArrival);
@@ -825,8 +721,8 @@ app.post('/api/arrivals/invite-counter', async (req, res) => {
   
   try {
     await run(`
-      INSERT INTO counter_invites (id, created_by, created_at)
-      VALUES (?, ?, datetime('now'))
+      INSERT INTO lfc_demo_counter_invites (id, created_by, created_at)
+      VALUES (?, ?, now())
     `, [token, req.user.id]);
 
     res.json({ token, invite_url: `/poimen/index.html#invite/${token}` });
@@ -838,7 +734,7 @@ app.post('/api/arrivals/invite-counter', async (req, res) => {
 // Accept invite link and set user as Counter
 app.post('/api/arrivals/accept-invite', async (req, res) => {
   const { token, name, username } = req.body;
-  const invite = await get("SELECT * FROM counter_invites WHERE id = ? AND is_used = 0", [token]);
+  const invite = await get("SELECT * FROM lfc_demo_counter_invites WHERE id = ? AND is_used = 0", [token]);
   if (!invite) {
     return res.status(400).json({ error: 'Invalid or already used invite token.' });
   }
@@ -846,18 +742,18 @@ app.post('/api/arrivals/accept-invite', async (req, res) => {
   try {
     // Create new Counter user
     const userRes = await run(`
-      INSERT INTO users (username, name, role)
+      INSERT INTO lfc_demo_users (username, name, role)
       VALUES (?, ?, 'Counter')
     `, [username, name]);
 
     // Mark token as used
     await run(`
-      UPDATE counter_invites 
+      UPDATE lfc_demo_counter_invites 
       SET is_used = 1, used_by = ?
       WHERE id = ?
     `, [userRes.id, token]);
 
-    const newUser = await get("SELECT * FROM users WHERE id = ?", [userRes.id]);
+    const newUser = await get("SELECT * FROM lfc_demo_users WHERE id = ?", [userRes.id]);
     await addAuditLog(userRes.id, name, 'Counter', 'ACCEPT_INVITE', 'user', userRes.id, null, newUser);
 
     res.json({ success: true, user: newUser });
@@ -872,14 +768,14 @@ app.post('/api/arrivals/accept-invite', async (req, res) => {
 // Get members check status for a specific Saturday arrival
 app.get('/api/arrivals/:id/named-attendance', async (req, res) => {
   const arrivalId = parseInt(req.params.id);
-  const arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [arrivalId]);
+  const arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [arrivalId]);
   if (!arrival) return res.status(404).json({ error: 'Arrival record not found.' });
 
   // Get roster for this unit
-  const roster = await all("SELECT id, name FROM members WHERE unit_id = ? AND is_active = 1", [arrival.unit_id]);
+  const roster = await all("SELECT id, name FROM lfc_demo_members WHERE unit_id = ? AND is_active = 1", [arrival.unit_id]);
   
   // Get existing ticks
-  const ticks = await all("SELECT member_id, present FROM saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
+  const ticks = await all("SELECT member_id, present FROM lfc_demo_saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
 
   const tickMap = {};
   ticks.forEach(t => { tickMap[t.member_id] = t.present; });
@@ -896,10 +792,10 @@ app.get('/api/arrivals/:id/named-attendance', async (req, res) => {
 // Update Saturday named ticks
 app.post('/api/arrivals/:id/named-attendance', async (req, res) => {
   const arrivalId = parseInt(req.params.id);
-  const arrival = await get("SELECT * FROM saturday_arrivals WHERE id = ?", [arrivalId]);
+  const arrival = await get("SELECT * FROM lfc_demo_saturday_arrivals WHERE id = ?", [arrivalId]);
   if (!arrival) return res.status(404).json({ error: 'Arrival record not found.' });
 
-  const targetUnit = await get("SELECT * FROM units WHERE id = ?", [arrival.unit_id]);
+  const targetUnit = await get("SELECT * FROM lfc_demo_units WHERE id = ?", [arrival.unit_id]);
   const { role, governorship_id, unit_id: userUnitId } = req.user;
 
   // Auth check: Unit leader can tick, Governor/Admin who oversees, Chief Admin
@@ -917,25 +813,25 @@ app.post('/api/arrivals/:id/named-attendance', async (req, res) => {
   const { ticks } = req.body; // Array of { member_id, present }
   
   try {
-    const oldTicks = await all("SELECT * FROM saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
+    const oldTicks = await all("SELECT * FROM lfc_demo_saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
 
-    // Perform inside transaction using async/await
-    await run("BEGIN TRANSACTION");
-    for (const tick of ticks) {
-      await run(`
-        INSERT INTO saturday_named_attendance (arrival_id, member_id, present)
-        VALUES (?, ?, ?)
-        ON CONFLICT(arrival_id, member_id) DO UPDATE SET present = excluded.present
-      `, [arrivalId, tick.member_id, tick.present ? 1 : 0]);
-    }
-    await run("COMMIT");
+    // Real transaction (single reserved connection) instead of manual
+    // BEGIN/COMMIT strings, which aren't safe against a connection pool.
+    await transaction(async (tx) => {
+      for (const tick of ticks) {
+        await tx.run(`
+          INSERT INTO lfc_demo_saturday_named_attendance (arrival_id, member_id, present)
+          VALUES (?, ?, ?)
+          ON CONFLICT(arrival_id, member_id) DO UPDATE SET present = excluded.present
+        `, [arrivalId, tick.member_id, tick.present ? 1 : 0]);
+      }
+    });
 
-    const newTicks = await all("SELECT * FROM saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
+    const newTicks = await all("SELECT * FROM lfc_demo_saturday_named_attendance WHERE arrival_id = ?", [arrivalId]);
     await addAuditLog(req.user.id, req.user.name, req.user.role, 'TICK_ATTENDANCE', 'saturday_arrival', arrivalId, oldTicks, newTicks);
 
     res.json({ success: true, ticks: newTicks });
   } catch (err) {
-    await run("ROLLBACK");
     res.status(500).json({ error: err.message });
   }
 });
@@ -950,16 +846,16 @@ app.get('/api/shepherding/report', async (req, res) => {
     return res.status(403).json({ error: 'Unauthorized to view shepherding analytics.' });
   }
 
-  // Get active units list
+  // Get units list
   let query = `
-    SELECT u.id as unit_id, u.name as unit_name, u.type as unit_type, 
+    SELECT u.id as unit_id, u.name as unit_name, u.type as unit_type,
            g.name as governorship_name, a.name as area_name,
            us.name as leader_name, us.role as leader_role
-    FROM units u
-    JOIN governorships g ON u.governorship_id = g.id
-    JOIN areas a ON g.area_id = a.id
-    LEFT JOIN users us ON u.leader_id = us.id
-    WHERE u.is_active = 1
+    FROM lfc_demo_units u
+    JOIN lfc_demo_governorships g ON u.governorship_id = g.id
+    JOIN lfc_demo_areas a ON g.area_id = a.id
+    LEFT JOIN lfc_demo_users us ON u.leader_id = us.id
+    WHERE 1=1
   `;
   const params = [];
 
@@ -982,14 +878,14 @@ app.get('/api/shepherding/report', async (req, res) => {
     // Check midweek services count in past 4 weeks (dates: '2026-06-03', '2026-06-10', '2026-06-17', '2026-06-24')
     const midweekCount = await get(`
       SELECT COUNT(*) as count 
-      FROM midweek_services 
+      FROM lfc_demo_midweek_services 
       WHERE unit_id = ? AND service_date IN ('2026-06-03', '2026-06-10', '2026-06-17', '2026-06-24')
     `, [unit.unit_id]);
 
     // Saturday arrivals count in past 4 weeks
     const arrivalsList = await all(`
       SELECT approved_headcount, arrival_date, status
-      FROM saturday_arrivals 
+      FROM lfc_demo_saturday_arrivals 
       WHERE unit_id = ? AND arrival_date IN ('2026-06-06', '2026-06-13', '2026-06-20', '2026-06-27')
     `, [unit.unit_id]);
 
@@ -1029,7 +925,7 @@ app.get('/api/audit-logs', async (req, res) => {
     return res.status(403).json({ error: 'Unauthorized to view audit history logs.' });
   }
 
-  let query = "SELECT * FROM audit_logs";
+  let query = "SELECT * FROM lfc_demo_audit_logs";
   const params = [];
 
   // Scoping if Governor or Gov Admin
@@ -1037,12 +933,12 @@ app.get('/api/audit-logs', async (req, res) => {
     // Find all units and users in their governorship
     query += `
       WHERE user_id IN (
-        SELECT id FROM users WHERE governorship_id = ?
+        SELECT id FROM lfc_demo_users WHERE governorship_id = ?
       ) OR (
-        entity_type = 'unit' AND entity_id IN (SELECT id FROM units WHERE governorship_id = ?)
+        entity_type = 'unit' AND entity_id IN (SELECT id FROM lfc_demo_units WHERE governorship_id = ?)
       ) OR (
         entity_type = 'member' AND entity_id IN (
-          SELECT m.id FROM members m JOIN units u ON m.unit_id = u.id WHERE u.governorship_id = ?
+          SELECT m.id FROM lfc_demo_members m JOIN lfc_demo_units u ON m.unit_id = u.id WHERE u.governorship_id = ?
         )
       )
     `;
@@ -1055,8 +951,28 @@ app.get('/api/audit-logs', async (req, res) => {
 });
 
 
-// --- START SERVER ---
-app.listen(PORT, async () => {
-  await initDb();
-  console.log(`LFC Church Management Server running on port ${PORT}`);
+// --- SPA FALLBACK ---
+// Any GET that isn't an /api route serves the React app's index.html so
+// client-side routes (/synago/*, /poimen/*, the landing page, and Poimen's
+// drill-down paths like /area/1 or /unit/3) keep working on refresh and
+// deep links. Registered after all API routes.
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
+
+// --- START SERVER ---
+// On Vercel this file is require()'d by the serverless runtime rather than
+// run directly, so app.listen() only happens for local/VPS-style hosting;
+// Vercel's own runtime handles binding the port. initDb() still runs either
+// way so tables/seed data exist on first request.
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    await initDb();
+    console.log(`LFC Church Management Server running on port ${PORT}`);
+  });
+} else {
+  initDb().catch((err) => console.error('Failed to initialize database:', err));
+}
+
+module.exports = app;
