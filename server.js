@@ -16,89 +16,10 @@ app.use(express.urlencoded({ extended: true }));
 // Vercel serverless functions have no persistent/writable filesystem.
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Serve static files
-app.use('/shared', express.static(path.join(__dirname, 'public/shared')));
-app.use('/synago', express.static(path.join(__dirname, 'public/synago')));
-app.use('/poimen', express.static(path.join(__dirname, 'public/poimen')));
-
-// SPA Wildcard fallbacks to support client-side routing
-app.get(/^\/synago($|\/.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/synago/index.html'));
-});
-
-app.get(/^\/poimen($|\/.*)/, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/poimen/index.html'));
-});
-
-// Redirect root to Poimen or Synago chooser
-app.get('/', (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>LFC Church Management System</title>
-        <style>
-          body {
-            background-color: #0e151b;
-            color: #fafafa;
-            font-family: system-ui, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100dvh;
-            margin: 0;
-          }
-          .container {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 3rem;
-            border-radius: 12px;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-          }
-          h1 {
-            color: #3acff8;
-            margin-bottom: 2rem;
-          }
-          .btn {
-            display: block;
-            width: 250px;
-            padding: 1rem;
-            margin: 1rem auto;
-            text-decoration: none;
-            color: #fff;
-            border-radius: 6px;
-            font-weight: bold;
-            transition: all 0.3s;
-          }
-          .btn-synago {
-            background: linear-gradient(135deg, #ff7a00, #fd5d96);
-          }
-          .btn-poimen {
-            background: linear-gradient(135deg, #a855f7, #3acff8);
-          }
-          .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 0 15px rgba(255,255,255,0.2);
-          }
-          p {
-            color: #888;
-            margin-top: 2rem;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>LFC Church Management System</h1>
-          <a href="/synago" class="btn btn-synago">Go to Synago (App 1)</a>
-          <a href="/poimen" class="btn btn-poimen">Go to Poimen (App 2)</a>
-          <p>Two separate apps sharing one database</p>
-        </div>
-      </body>
-    </html>
-  `);
-});
+// Serve the built React client (the old public/ static apps were ported to
+// a Vite + React app in client/; run `npm run build` to produce client/dist).
+const clientDist = path.join(__dirname, 'client/dist');
+app.use(express.static(clientDist));
 
 // Middleware to extract user from headers (simulate session authentication)
 // Also performs audit logging on all access/writes
@@ -1029,6 +950,16 @@ app.get('/api/audit-logs', async (req, res) => {
   res.json(logs);
 });
 
+
+// --- SPA FALLBACK ---
+// Any GET that isn't an /api route serves the React app's index.html so
+// client-side routes (/synago/*, /poimen/*, the landing page, and Poimen's
+// drill-down paths like /area/1 or /unit/3) keep working on refresh and
+// deep links. Registered after all API routes.
+app.use((req, res, next) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api')) return next();
+  res.sendFile(path.join(clientDist, 'index.html'));
+});
 
 // --- START SERVER ---
 // On Vercel this file is require()'d by the serverless runtime rather than
