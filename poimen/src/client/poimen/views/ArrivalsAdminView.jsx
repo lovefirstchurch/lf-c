@@ -99,13 +99,13 @@ export default function ArrivalsAdminView() {
   const isConfigAdmin = me && (me.role === 'Chief Admin' || me.role === 'Arrivals Admin');
 
   return (
-    <ViewShell title="Saturday Arrivals Console">
+    <ViewShell title="Arrivals">
       <div className="grid-dashboard" style={{ gridTemplateColumns: wide ? '2fr 1fr' : '1fr' }}>
         {/* Left Column: Submissions Review Log */}
         <div>
           <div className="flex-between" style={{ marginBottom: '1rem' }}>
             <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.15rem', color: 'var(--primary)' }}>
-              Arrivals Approvals Panel
+              Approvals
             </h3>
             <input
               type="date"
@@ -136,14 +136,14 @@ export default function ArrivalsAdminView() {
         {/* Right Column: Configuration & invites */}
         <div>
           {/* Config */}
-          <h3 style={colTitleStyle}>Arrivals Configurations</h3>
+          <h3 style={colTitleStyle}>Settings</h3>
           <div className="glass" style={{ padding: '1rem', marginBottom: '2rem' }}>
             {!config && 'Loading config...'}
             {config && me && (isConfigAdmin ? (
               <form onSubmit={handleConfigSubmit} key={`${config.cutoff_time}:${config.headcount_approval_required}`}>
                 <div className="form-group">
                   <label className="form-label" style={{ fontSize: '0.75rem' }}>
-                    Premobilisation Cutoff Time
+                    Cutoff Time
                   </label>
                   <input
                     type="text"
@@ -162,7 +162,7 @@ export default function ArrivalsAdminView() {
                     defaultChecked={!!config.headcount_approval_required}
                   />
                   <label htmlFor="checkReq" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>
-                    Require official approvals for headcount
+                    Require headcount approval
                   </label>
                 </div>
                 <button type="submit" className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
@@ -184,10 +184,10 @@ export default function ArrivalsAdminView() {
           </div>
 
           {/* Invite */}
-          <h3 style={colTitleStyle}>Ad-Hoc Counter Invites</h3>
+          <h3 style={colTitleStyle}>Invite a Counter</h3>
           <div className="glass" style={{ padding: '1rem' }}>
             <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-              Generate single-use token links to invite Counter agents.
+              Send a one-time link to invite a Counter.
             </p>
             <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={handleInvite}>
               + Generate Invite Token
@@ -207,7 +207,7 @@ export default function ArrivalsAdminView() {
                     {window.location.origin + inviteResult}
                   </a>
                   <div style={{ marginTop: '0.25rem', color: 'var(--muted-foreground)' }}>
-                    Click link or open in a new tab to simulate Counter agent registration.
+                    Share this link with them.
                   </div>
                 </>
               )}

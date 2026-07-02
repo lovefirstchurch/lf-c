@@ -4,10 +4,8 @@ import { apiFetch, LoginGate, SignOutButton, Sidebar, MenuToggleButton, clearCur
 
 const ADMIN_ROLES = ['Chief Admin', 'Resident Pastor', 'Resident Mother', 'Governorship Admin'];
 
-const NOUNIT_TEXT =
-  'You hold a leadership role but have not been assigned to run a Fellowship or Schacenta yet. Please sign in as a leader with a unit.';
-const ADMIN_TEXT =
-  'You are logged in with an administrative profile. Synago is the leader-facing app specifically for Saturdays, where individual unit shepherds upload premobilisation photos and record vehicles.';
+const NOUNIT_TEXT = "You're not assigned to a unit yet. Sign in as a unit leader.";
+const ADMIN_TEXT = 'This is an admin account. Synago is for unit leaders on Saturdays.';
 
 // Drawer sections. Each renders one focused screen at a time instead of the
 // old single packed page. Arrivals bundles the Premobilisation, Bussing, and
@@ -158,11 +156,7 @@ function SynagoDashboard() {
         setCurrentUnit(unitFound);
         const typeLabel = unitFound.type === 'fellowship' ? 'Area 1 Fellowship' : 'Area 2 Schacenta';
         setRosterTitle(`${unitFound.name} (${typeLabel})`);
-        setUnitMeta(
-          `Overseeing: ${unitFound.name} (${typeLabel}) under ${
-            unitFound.governorship_id ? 'Governorship #' + unitFound.governorship_id : 'No Governorship'
-          }`
-        );
+        setUnitMeta(`${unitFound.name} · ${typeLabel}`);
       }
 
       setMembers(memberRows);
@@ -451,14 +445,13 @@ function SynagoDashboard() {
                 </div>
 
                 <div className="glass dashboard-panel">
-                  <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Saturday Arrivals Ritual</h3>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Saturday Arrivals</h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                    Complete premobilisation before the cutoff (<strong>{cutoffTime}</strong>)
-                    {isSchacenta ? ', log your bussing vehicles' : ''}, and a Counter will record the official
-                    headcount.
+                    Upload a photo before <strong>{cutoffTime}</strong>
+                    {isSchacenta ? ', log vehicles' : ''}, then a Counter verifies the headcount.
                   </p>
                   <button className="btn btn-synago btn-sm" onClick={() => navTo('arrivals')}>
-                    Go to Arrivals Ritual
+                    Go to Arrivals
                   </button>
                 </div>
               </>
@@ -477,7 +470,7 @@ function SynagoDashboard() {
                     </span>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                    Upload one photo of your unit gathering before the cutoff time (<strong>{cutoffTime}</strong>).
+                    Upload a photo before <strong>{cutoffTime}</strong>.
                   </p>
 
                   {!premobSubmitted ? (
@@ -493,7 +486,7 @@ function SynagoDashboard() {
                         />
                       </div>
                       <button type="submit" className="btn btn-synago" style={{ width: '100%' }}>
-                        Upload Premobilisation Photo
+                        Upload Photo
                       </button>
                     </form>
                   ) : (
@@ -521,13 +514,12 @@ function SynagoDashboard() {
 
                   {!isSchacenta ? (
                     <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)' }}>
-                      On-the-way vehicle photo logs and transport records are only required for <strong>Area 2
-                      Schacentas</strong>. Area 1 Fellowships proceed directly to counter verification.
+                      Only required for Area 2 Schacentas.
                     </p>
                   ) : (
                     <>
                       <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1.25rem' }}>
-                        Add one photo and headcount per transport vehicle carrying members to church.
+                        Add a photo and headcount per vehicle.
                       </p>
 
                       <div style={{ marginBottom: '1.5rem' }}>
@@ -660,10 +652,9 @@ function SynagoDashboard() {
                 {/* Step 3: Counter Verification */}
                 <div className="glass dashboard-panel ritual-step">
                   <div className="ritual-step-num">3</div>
-                  <div className="ritual-step-title">Counter Verification &amp; Official Count</div>
+                  <div className="ritual-step-title">Verification</div>
                   <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-                    An Arrivals Admin or Counter will review your submission and record the verified headcount.
-                    <strong> This is the official Saturday attendance figure.</strong>
+                    A Counter verifies and records the final headcount.
                   </p>
 
                   <div
@@ -701,7 +692,7 @@ function SynagoDashboard() {
                 <div>
                   {members && members.length === 0 && (
                     <div style={{ color: 'var(--muted-foreground)', textAlign: 'center', padding: '2rem' }}>
-                      No active members registered in this unit roster. Add them in Poimen.
+                      No members yet.
                     </div>
                   )}
                   {members &&

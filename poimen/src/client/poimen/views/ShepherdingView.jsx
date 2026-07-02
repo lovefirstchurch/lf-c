@@ -21,10 +21,9 @@ export default function ShepherdingView() {
   }, []);
 
   return (
-    <ViewShell title="Shepherding Accountability">
+    <ViewShell title="Shepherding Control">
       <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>
-        Analytics review console showing midweek and Saturday compliance ratios over the past 4
-        weeks, with performance checks against targets.
+        Compliance over the last 4 weeks.
       </p>
 
       <div className="glass table-container">
@@ -50,7 +49,7 @@ export default function ShepherdingView() {
             {list && list.length === 0 && (
               <tr>
                 <td colSpan="6" style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>
-                  No units found in your scope.
+                  No units yet.
                 </td>
               </tr>
             )}

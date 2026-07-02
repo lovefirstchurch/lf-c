@@ -63,10 +63,14 @@
 .drilldown-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.25rem;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
   text-decoration: none;
   color: inherit;
+}
+.drilldown-item-body {
+  flex: 1;
+  min-width: 0;
 }
 .drilldown-title {
   font-weight: 600;

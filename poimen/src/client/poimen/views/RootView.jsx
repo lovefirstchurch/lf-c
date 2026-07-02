@@ -1,5 +1,5 @@
 import { useMinWidth } from '@lfc/shared';
-import ViewShell, { DrilldownArrow } from './ViewShell.jsx';
+import ViewShell, { DrilldownArrow, DrilldownIcon, Icons } from './ViewShell.jsx';
 
 const sectionTitleStyle = {
   fontFamily: 'var(--font-display)',
@@ -20,28 +20,28 @@ export default function RootView() {
   const wide = useMinWidth(900);
 
   return (
-    <ViewShell title="Administration Console" hasBack={false}>
+    <ViewShell title="Dashboard" hasBack={false}>
       <div
         className="grid-dashboard"
         style={{ gridTemplateColumns: wide ? '1fr 1fr' : '1fr', marginTop: '1rem' }}
       >
         <div>
-          <h3 style={sectionTitleStyle}>Congregational Hierarchy</h3>
-          <p style={sectionDescStyle}>
-            Select an Area to explore governorships, fellowships, and schacentas.
-          </p>
+          <h3 style={sectionTitleStyle}>Areas</h3>
+          <p style={sectionDescStyle}>Browse governorships and units.</p>
           <div className="drilldown-list">
             <a href="/area/1" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Area 1 (Trinity Fellowship Area)</div>
-                <div className="drilldown-subtitle">Fellowships led by Shepherds</div>
+              <DrilldownIcon>{Icons.layers}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Area 1 &middot; Trinity</div>
+                <div className="drilldown-subtitle">Fellowships</div>
               </div>
               <DrilldownArrow />
             </a>
             <a href="/area/2" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Area 2 (Grace Schacenta Area)</div>
-                <div className="drilldown-subtitle">Schacentas led by Schacenta Leaders</div>
+              <DrilldownIcon>{Icons.layers}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Area 2 &middot; Grace</div>
+                <div className="drilldown-subtitle">Schacentas</div>
               </div>
               <DrilldownArrow />
             </a>
@@ -49,42 +49,38 @@ export default function RootView() {
         </div>
 
         <div>
-          <h3 style={sectionTitleStyle}>Global Operations</h3>
-          <p style={sectionDescStyle}>
-            Access church-wide directories, reports, audits, and configurations.
-          </p>
+          <h3 style={sectionTitleStyle}>More</h3>
+          <p style={sectionDescStyle}>Directories, reports, and settings.</p>
           <div className="drilldown-list">
             <a href="/directory" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Membership Directory</div>
-                <div className="drilldown-subtitle">Filterable list of all members</div>
+              <DrilldownIcon>{Icons.people}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Directory</div>
+                <div className="drilldown-subtitle">All members</div>
               </div>
               <DrilldownArrow />
             </a>
             <a href="/arrivals-admin" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Saturday Arrivals Console</div>
-                <div className="drilldown-subtitle">
-                  Verify headcounts, manage cutoff times &amp; counters
-                </div>
+              <DrilldownIcon>{Icons.flag}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Arrivals</div>
+                <div className="drilldown-subtitle">Verify headcounts</div>
               </div>
               <DrilldownArrow />
             </a>
             <a href="/shepherding" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Shepherding Accountability</div>
-                <div className="drilldown-subtitle">
-                  Midweek &amp; Saturday performance compliance logs
-                </div>
+              <DrilldownIcon>{Icons.chart}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">Shepherding Control</div>
+                <div className="drilldown-subtitle">Compliance tracking</div>
               </div>
               <DrilldownArrow />
             </a>
             <a href="/history" className="drilldown-item glass glass-hover">
-              <div>
-                <div className="drilldown-title">Universal History System</div>
-                <div className="drilldown-subtitle">
-                  Immutable transaction &amp; audit logs for all events
-                </div>
+              <DrilldownIcon>{Icons.clock}</DrilldownIcon>
+              <div className="drilldown-item-body">
+                <div className="drilldown-title">History Log</div>
+                <div className="drilldown-subtitle">All activity</div>
               </div>
               <DrilldownArrow />
             </a>

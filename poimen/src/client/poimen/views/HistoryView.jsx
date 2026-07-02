@@ -19,16 +19,15 @@ export default function HistoryView() {
   }, []);
 
   return (
-    <ViewShell title="Universal History System">
+    <ViewShell title="History">
       <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>
-        Every edit, access re-assignment, and approval logs an audit entry. This log provides the
-        absolute tracking source of truth.
+        A log of every edit and approval.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {logs === null && <div style={{ color: 'var(--muted-foreground)' }}>Loading logs...</div>}
         {logs && logs.length === 0 && (
-          <div style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>No audit logs written.</div>
+          <div style={{ color: 'var(--muted-foreground)', textAlign: 'center' }}>No activity yet.</div>
         )}
         {logs &&
           logs.map((l) => (
