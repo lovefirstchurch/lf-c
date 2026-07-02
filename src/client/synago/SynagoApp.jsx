@@ -3,7 +3,7 @@ import { apiFetch } from '../shared/api.js';
 import LoginGate from '../shared/LoginGate.jsx';
 import UserSwitcher, { SignOutButton } from '../shared/UserSwitcher.jsx';
 import Sidebar, { MenuToggleButton } from '../shared/Sidebar.jsx';
-import './synago.css';
+
 
 const ADMIN_ROLES = ['Chief Admin', 'Resident Pastor', 'Resident Mother', 'Governorship Admin'];
 
