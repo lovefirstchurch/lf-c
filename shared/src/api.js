@@ -1,7 +1,7 @@
 // API fetch wrapper that automatically injects the current authenticated
 // user's ID, ported from public/shared/components.js.
 export async function apiFetch(url, options = {}) {
-  const userId = localStorage.getItem('lfc_user_id');
+  const userId = typeof window !== 'undefined' ? localStorage.getItem('lfc_user_id') : null;
 
   options.headers = {
     ...options.headers,
@@ -16,13 +16,17 @@ export async function apiFetch(url, options = {}) {
 }
 
 export function getCurrentUserId() {
-  return localStorage.getItem('lfc_user_id');
+  return typeof window !== 'undefined' ? localStorage.getItem('lfc_user_id') : null;
 }
 
 export function setCurrentUserId(id) {
-  localStorage.setItem('lfc_user_id', id.toString());
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('lfc_user_id', id.toString());
+  }
 }
 
 export function clearCurrentUserId() {
-  localStorage.removeItem('lfc_user_id');
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('lfc_user_id');
+  }
 }

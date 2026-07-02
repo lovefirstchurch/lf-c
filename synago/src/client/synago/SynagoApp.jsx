@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { apiFetch, LoginGate, SignOutButton, Sidebar, MenuToggleButton, clearCurrentUserId } from '@lfc/shared';
 
 
@@ -61,7 +62,7 @@ export default function SynagoApp() {
   );
 }
 
-function SynagoDashboard() {
+export function SynagoDashboard({ view = 'dashboard' }) {
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [leaderName, setLeaderName] = useState('Loading profile...');
   const [unitMeta, setUnitMeta] = useState('Checking assignments...');
@@ -79,7 +80,12 @@ function SynagoDashboard() {
   // Collapsible side drawer navigation
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarUser, setSidebarUser] = useState(null);
-  const [activeNav, setActiveNav] = useState('dashboard');
+  const [activeNav, setActiveNav] = useState(view);
+
+  // Sync activeNav state with view prop from route
+  useEffect(() => {
+    setActiveNav(view);
+  }, [view]);
 
   // Fetch initial profile detail for the header and sidebar, then load the
   // dashboard for the logged-in user.
@@ -325,18 +331,15 @@ function SynagoDashboard() {
         user={sidebarUser}
       >
         {NAV.map((item) => (
-          <a
+          <Link
             key={item.key}
-            href="#"
+            href={item.key === 'dashboard' ? '/' : `/${item.key}`}
             className={`Sidebar-nav-link${activeNav === item.key ? ' active' : ''}`}
-            onClick={(e) => {
-              e.preventDefault();
-              navTo(item.key);
-            }}
+            onClick={() => setSidebarOpen(false)}
           >
             {item.icon}
             {item.label}
-          </a>
+          </Link>
         ))}
       </Sidebar>
 

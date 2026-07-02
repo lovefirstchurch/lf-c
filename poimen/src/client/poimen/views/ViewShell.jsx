@@ -1,12 +1,16 @@
-// General view structure, ported from createViewShell in public/poimen/app.js.
-// The back button has no handler of its own: clicks bubble to the Stack
-// container's delegated handler in PoimenApp.
+// General view container for Poimen sub-pages.
+// Uses window.history.back() for the back button (standard Next.js navigation).
 export default function ViewShell({ title, hasBack = true, children }) {
   return (
-    <div className="Stack-viewContent">
+    <div className="view-content">
       <header className="view-header">
         {hasBack && (
-          <button className="back" aria-label="Back" type="button">
+          <button
+            className="back"
+            aria-label="Back"
+            type="button"
+            onClick={() => window.history.back()}
+          >
             <svg
               width="20"
               height="20"

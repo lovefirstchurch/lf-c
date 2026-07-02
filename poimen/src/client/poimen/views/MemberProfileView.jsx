@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { apiFetch } from '@lfc/shared';
 import ViewShell from './ViewShell.jsx';
 
-export default function MemberProfileView({ routeData }) {
-  const memberId = routeData.id;
+export default function MemberProfileView({ memberId }) {
   const [data, setData] = useState(null);
   const [definitions, setDefinitions] = useState([]);
   const [loading, setLoading] = useState(true);

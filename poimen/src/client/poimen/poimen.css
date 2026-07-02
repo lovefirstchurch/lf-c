@@ -44,13 +44,16 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* Adjust Stack container to slide below fixed header */
-.Stack {
-  height: calc(100dvh - 70px);
+/* Standard scrollable content area below the fixed header */
+.poimen-main {
   margin-top: 70px;
-}
-.Stack-viewContent {
+  min-height: calc(100dvh - 70px);
   padding: 2rem 1.5rem 6rem;
+}
+.view-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 /* Drilldown Nav Card list styles */

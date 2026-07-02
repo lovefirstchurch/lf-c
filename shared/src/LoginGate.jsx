@@ -6,13 +6,18 @@ import { apiFetch, setCurrentUserId } from './api.js';
 // (must_change_password), mirroring the production system's
 // default_password_must_change flow.
 export default function LoginGate({ appName, children }) {
-  const [userId] = useState(() => localStorage.getItem('lfc_user_id'));
+  const [userId, setUserId] = useState(null);
   // checking | loggedOut | mustChangePassword | ready
-  const [status, setStatus] = useState(userId ? 'checking' : 'loggedOut');
+  const [status, setStatus] = useState('checking');
   const [me, setMe] = useState(null);
 
   useEffect(() => {
-    if (!userId) return;
+    const id = typeof window !== 'undefined' ? localStorage.getItem('lfc_user_id') : null;
+    setUserId(id);
+    if (!id) {
+      setStatus('loggedOut');
+      return;
+    }
     apiFetch('/api/me')
       .then(async (res) => {
         const data = await res.json().catch(() => null);
@@ -24,7 +29,7 @@ export default function LoginGate({ appName, children }) {
         setStatus(data.must_change_password ? 'mustChangePassword' : 'ready');
       })
       .catch(() => setStatus('loggedOut'));
-  }, [userId]);
+  }, []);
 
   if (status === 'loggedOut') return <LoginScreen appName={appName} />;
   if (status === 'checking') return null;
